@@ -90,7 +90,7 @@ class IpoptInterface(SolverInterface):
         """
         generic_show_constraints_jacobian_sparsity(self)
 
-    def solve(self, expand_during_shake_tree: Bool) -> AnyDict:
+    def solve(self, expand_during_shake_tree: Bool, mycallback=None) -> AnyDict:
         """
         Solve the prepared ocp
 
@@ -98,7 +98,7 @@ class IpoptInterface(SolverInterface):
         -------
         A reference to the solution
         """
-        return generic_solve(self, expand_during_shake_tree)
+        return generic_solve(self, expand_during_shake_tree, mycallback=mycallback)
 
     def set_lagrange_multiplier(self, sol: Solution) -> None:
         """
@@ -115,7 +115,9 @@ class IpoptInterface(SolverInterface):
         """
         Parse the bounds of the full ocp to a Ipopt-friendly one
         """
-        return generic_dispatch_bounds(self, include_g=include_g, include_g_internal=include_g_internal)
+        return generic_dispatch_bounds(
+            self, include_g=include_g, include_g_internal=include_g_internal
+        )
 
     def dispatch_obj_func(self):
         """
@@ -128,7 +130,9 @@ class IpoptInterface(SolverInterface):
         """
         return generic_dispatch_obj_func(self)
 
-    def get_all_penalties(self, nlp: NonLinearProgram, penalties, get_bounds: bool = False):
+    def get_all_penalties(
+        self, nlp: NonLinearProgram, penalties, get_bounds: bool = False
+    ):
         """
         Parse the penalties of the full ocp to a Ipopt-friendly one
 
@@ -145,4 +149,6 @@ class IpoptInterface(SolverInterface):
         -------
 
         """
-        return generic_get_all_penalties(self, nlp, penalties, scaled=True, get_bounds=get_bounds)
+        return generic_get_all_penalties(
+            self, nlp, penalties, scaled=True, get_bounds=get_bounds
+        )

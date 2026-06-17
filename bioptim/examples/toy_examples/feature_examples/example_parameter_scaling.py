@@ -79,7 +79,11 @@ def generate_dat_to_track(
     objective_functions.add(ObjectiveFcn.Lagrange.MINIMIZE_STATE, key="q", weight=1)
 
     # Dynamics
-    dynamics = DynamicsOptions(ode_solver=ode_solver, expand_dynamics=expand_dynamics, phase_dynamics=phase_dynamics)
+    dynamics = DynamicsOptions(
+        ode_solver=ode_solver,
+        expand_dynamics=expand_dynamics,
+        phase_dynamics=phase_dynamics,
+    )
 
     # Path constraint
     x_bounds = BoundsList()
@@ -174,7 +178,9 @@ def prepare_ocp(
     parameter_bounds = BoundsList()
     parameter_init = InitialGuessList()
 
-    g_scaling = VariableScaling("gravity_xyz", np.array([1, 1, 10]))  # Does not converge to the right place
+    g_scaling = VariableScaling(
+        "gravity_xyz", np.array([1, 1, 10])
+    )  # Does not converge to the right place
     parameters.add(
         "gravity_xyz",  # The name of the parameter
         my_parameter_function,  # The function that modifies the biorbd model
@@ -183,7 +189,12 @@ def prepare_ocp(
     )
 
     # Give the parameter some min and max bounds and initial conditions
-    parameter_bounds.add("gravity_xyz", min_bound=min_g, max_bound=max_g, interpolation=InterpolationType.CONSTANT)
+    parameter_bounds.add(
+        "gravity_xyz",
+        min_bound=min_g,
+        max_bound=max_g,
+        interpolation=InterpolationType.CONSTANT,
+    )
     parameter_init["gravity_xyz"] = np.array([0.0, 0.5, -15])
 
     parameter_objectives.add(
@@ -210,12 +221,27 @@ def prepare_ocp(
 
     # Path constraint
     x_bounds = BoundsList()
-    x_bounds.add("q", min_bound=q_to_track, max_bound=q_to_track, interpolation=InterpolationType.EACH_FRAME)
-    x_bounds.add("qdot", min_bound=qdot_to_track, max_bound=qdot_to_track, interpolation=InterpolationType.EACH_FRAME)
+    x_bounds.add(
+        "q",
+        min_bound=q_to_track,
+        max_bound=q_to_track,
+        interpolation=InterpolationType.EACH_FRAME,
+    )
+    x_bounds.add(
+        "qdot",
+        min_bound=qdot_to_track,
+        max_bound=qdot_to_track,
+        interpolation=InterpolationType.EACH_FRAME,
+    )
 
     # Define control path constraint
     u_bounds = BoundsList()
-    u_bounds.add("tau", min_bound=tau_to_track, max_bound=tau_to_track, interpolation=InterpolationType.EACH_FRAME)
+    u_bounds.add(
+        "tau",
+        min_bound=tau_to_track,
+        max_bound=tau_to_track,
+        interpolation=InterpolationType.EACH_FRAME,
+    )
 
     # Define initial guesses
     x_init = InitialGuessList()
@@ -252,7 +278,9 @@ def main():
     biorbd_model_path = ExampleUtils.folder + "/models/pendulum_wrong_gravity.bioMod"
 
     ocp_to_track = generate_dat_to_track(
-        biorbd_model_path=biorbd_model_path, final_time=final_time, n_shooting=n_shooting
+        biorbd_model_path=biorbd_model_path,
+        final_time=final_time,
+        n_shooting=n_shooting,
     )
     sol_to_track = ocp_to_track.solve(Solver.IPOPT(show_online_optim=False))
     q_to_track = sol_to_track.decision_states(to_merge=SolutionMerge.NODES)["q"]
@@ -273,6 +301,7 @@ def main():
 
     # --- Solve the program --- #
     sol = ocp.solve(Solver.IPOPT(show_online_optim=False))
+    sol.graphs()
 
     # --- Get the results --- #
     print(f"Optimal parameters unscaled: {sol.decision_parameters(scaled=False)}")

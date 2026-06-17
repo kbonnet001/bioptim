@@ -161,7 +161,11 @@ def generate_data(
     dyn_func = bio_model.dynamics
 
     symbolic_states = vertcat(*(symbolic_q, symbolic_qdot))
-    symbolic_controls = vertcat(*(symbolic_tau, symbolic_mus)) if use_residual_torque else vertcat(symbolic_mus)
+    symbolic_controls = (
+        vertcat(*(symbolic_tau, symbolic_mus))
+        if use_residual_torque
+        else vertcat(symbolic_mus)
+    )
 
     nlp.dynamics_type = DynamicsOptions()
 
@@ -264,17 +268,31 @@ def prepare_ocp(
 
     # Add objective functions
     objective_functions = ObjectiveList()
-    objective_functions.add(ObjectiveFcn.Lagrange.TRACK_CONTROL, key="muscles", target=activations_ref)
+    objective_functions.add(
+        ObjectiveFcn.Lagrange.TRACK_CONTROL, key="muscles", target=activations_ref
+    )
 
     if use_residual_torque:
         objective_functions.add(ObjectiveFcn.Lagrange.MINIMIZE_CONTROL, key="tau")
 
     if kin_data_to_track == "markers":
-        objective_functions.add(ObjectiveFcn.Lagrange.TRACK_MARKERS, weight=100, target=markers_ref[:, :, :-1])
+        objective_functions.add(
+            ObjectiveFcn.Lagrange.TRACK_MARKERS,
+            weight=100,
+            target=markers_ref[:, :, :-1],
+        )
     elif kin_data_to_track == "q":
-        node = Node.ALL_SHOOTING if type(ode_solver) == OdeSolver.COLLOCATION else Node.ALL
+        node = (
+            Node.ALL_SHOOTING if type(ode_solver) == OdeSolver.COLLOCATION else Node.ALL
+        )
         ref = q_ref[:, :-1] if type(ode_solver) == OdeSolver.COLLOCATION else q_ref
-        objective_functions.add(ObjectiveFcn.Lagrange.TRACK_STATE, key="q", weight=100, target=ref, node=node)
+        objective_functions.add(
+            ObjectiveFcn.Lagrange.TRACK_STATE,
+            key="q",
+            weight=100,
+            target=ref,
+            node=node,
+        )
     else:
         raise RuntimeError("Wrong choice of kin_data_to_track")
 
@@ -301,7 +319,9 @@ def prepare_ocp(
     if use_residual_torque:
         tau_min, tau_max, tau_init = -100.0, 100.0, 0.0
         u_bounds["tau"] = [tau_min] * bio_model.nb_tau, [tau_max] * bio_model.nb_tau
-    u_bounds["muscles"] = [activation_min] * bio_model.nb_muscles, [activation_max] * bio_model.nb_muscles
+    u_bounds["muscles"] = [activation_min] * bio_model.nb_muscles, [
+        activation_max
+    ] * bio_model.nb_muscles
     u_init["muscles"] = [activation_init] * bio_model.nb_muscles
     # ------------- #
 
@@ -326,7 +346,9 @@ def main():
     # Define the problem
     biorbd_model_path = ExampleUtils.folder + "/models/arm26_muscle_driven_ocp.bioMod"
     use_residual_torque = True
-    bio_model = MusclesBiorbdModel(biorbd_model_path, with_residual_torque=use_residual_torque)
+    bio_model = MusclesBiorbdModel(
+        biorbd_model_path, with_residual_torque=use_residual_torque
+    )
     final_time = 0.5
     n_shooting_points = 50
 
@@ -349,7 +371,7 @@ def main():
         markers_ref,
         muscle_activations_ref,
         x_ref[: bio_model.nb_q, :],
-        kin_data_to_track="q",
+        kin_data_to_track="markers",
         use_residual_torque=use_residual_torque,
     )
 

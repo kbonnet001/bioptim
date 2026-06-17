@@ -11,12 +11,21 @@ from ..gui.online_callback_server import OnlineCallbackServer
 from ..limits.path_conditions import Bounds
 from ..limits.penalty_helpers import PenaltyHelpers, Slicy
 from ..misc.enums import InterpolationType, OnlineOptim
-from ..misc.parameters_types import AnyDictOptional, Bool, AnyDict, CX, DoubleNpArrayTuple, Int
+from ..misc.parameters_types import (
+    AnyDictOptional,
+    Bool,
+    AnyDict,
+    CX,
+    DoubleNpArrayTuple,
+    Int,
+)
 from ..optimization.non_linear_program import NonLinearProgram
 from ..optimization.solution.solution import Solution
 
 
-def generic_online_optim(interface: SolverInterface, ocp, show_options: AnyDictOptional = None):
+def generic_online_optim(
+    interface: SolverInterface, ocp, show_options: AnyDictOptional = None
+):
     """
     Declare the online callback to update the graphs while optimizing
 
@@ -63,10 +72,16 @@ def _vectors_are_equal(
 
     # We test the equality at three points (min, max, init) hoping any differences will be caught
     func = Function("equality", [v], [vector1 - vector2])
-    return np.sum(func(v_init)) == 0.0 and np.sum(func(v_min)) == 0.0 and np.sum(func(v_max)) == 0.0
+    return (
+        np.sum(func(v_init)) == 0.0
+        and np.sum(func(v_min)) == 0.0
+        and np.sum(func(v_max)) == 0.0
+    )
 
 
-def generic_solve(interface: SolverInterface, expand_during_shake_tree: Bool = False) -> AnyDict:
+def generic_solve(
+    interface: SolverInterface, expand_during_shake_tree: Bool = False
+) -> AnyDict:
     """
     Solve the prepared ocp
 
@@ -89,7 +104,12 @@ def generic_solve(interface: SolverInterface, expand_during_shake_tree: Bool = F
     # Shake the tree if needed for objectives
     raw_objectives = interface.dispatch_obj_func()
     can_skip_shake_objectives = _vectors_are_equal(
-        interface.pre_shake_tree_objectives, raw_objectives, v=v, v_init=v_init, v_min=v_bounds[0], v_max=v_bounds[1]
+        interface.pre_shake_tree_objectives,
+        raw_objectives,
+        v=v,
+        v_init=v_init,
+        v_min=v_bounds[0],
+        v_max=v_bounds[1],
     )
     interface.pre_shake_tree_objectives = raw_objectives
     if interface.shaked_objectives is None or not can_skip_shake_objectives:
@@ -100,7 +120,12 @@ def generic_solve(interface: SolverInterface, expand_during_shake_tree: Bool = F
     # Shake the tree if needed for constraints
     raw_g, all_g_bounds = interface.dispatch_bounds()
     can_skip_shake_constraints = _vectors_are_equal(
-        interface.pre_shake_tree_constraints, raw_g, v=v, v_init=v_init, v_min=v_bounds[0], v_max=v_bounds[1]
+        interface.pre_shake_tree_constraints,
+        raw_g,
+        v=v,
+        v_init=v_init,
+        v_min=v_bounds[0],
+        v_max=v_bounds[1],
     )
     interface.pre_shake_tree_constraints = raw_g
     if interface.shaked_constraints is None or not can_skip_shake_constraints:
@@ -109,10 +134,14 @@ def generic_solve(interface: SolverInterface, expand_during_shake_tree: Bool = F
         )
 
     # Set online_optim and show_online_optim options
-    if interface.opts.show_online_optim is not None:
-        if interface.opts.online_optim is not None:
-            raise ValueError("show_online_optim and online_optim cannot be simultaneous set")
-        interface.opts.online_optim = OnlineOptim.DEFAULT if interface.opts.show_online_optim else None
+    if interface.opts.show_online_optim == True:
+        if interface.opts.online_optim == True:
+            raise ValueError(
+                "show_online_optim and online_optim cannot be simultaneous set"
+            )
+        interface.opts.online_optim = (
+            OnlineOptim.DEFAULT if interface.opts.show_online_optim else None
+        )
 
     if interface.opts.online_optim is not None:
         interface.online_optim(interface.ocp, interface.opts.show_options)
@@ -125,16 +154,30 @@ def generic_solve(interface: SolverInterface, expand_during_shake_tree: Bool = F
         "ubg": all_g_bounds.max,
         "x0": v_init,
     }
-    if interface.shaked_ocp_solver is None or not can_skip_shake_objectives or not can_skip_shake_constraints:
-        interface.nlp = {"x": v, "f": sum1(interface.shaked_objectives), "g": interface.shaked_constraints}
+    if (
+        interface.shaked_ocp_solver is None
+        or not can_skip_shake_objectives
+        or not can_skip_shake_constraints
+    ):
+        interface.nlp = {
+            "x": v,
+            "f": sum1(interface.shaked_objectives),
+            "g": interface.shaked_constraints,
+        }
         interface.c_compile = interface.opts.c_compile
         options = interface.opts.as_dict(interface)
 
         if interface.c_compile:
-            nlpsol("nlpsol", interface.solver_name.lower(), interface.nlp, options).generate_dependencies("nlp.c")
-            interface.shaked_ocp_solver = nlpsol("nlpsol", interface.solver_name, Importer("nlp.c", "shell"), options)
+            nlpsol(
+                "nlpsol", interface.solver_name.lower(), interface.nlp, options
+            ).generate_dependencies("nlp.c")
+            interface.shaked_ocp_solver = nlpsol(
+                "nlpsol", interface.solver_name, Importer("nlp.c", "shell"), options
+            )
         else:
-            interface.shaked_ocp_solver = nlpsol("solver", interface.solver_name.lower(), interface.nlp, options)
+            interface.shaked_ocp_solver = nlpsol(
+                "solver", interface.solver_name.lower(), interface.nlp, options
+            )
 
     if interface.lam_g is not None:
         interface.limits["lam_g0"] = interface.lam_g
@@ -144,7 +187,9 @@ def generic_solve(interface: SolverInterface, expand_during_shake_tree: Bool = F
     # Solve the problem
     tic = perf_counter()
     interface.out = {"sol": interface.shaked_ocp_solver.call(interface.limits)}
-    interface.out["sol"]["solver_time_to_optimize"] = interface.shaked_ocp_solver.stats()["t_wall_total"]
+    interface.out["sol"][
+        "solver_time_to_optimize"
+    ] = interface.shaked_ocp_solver.stats()["t_wall_total"]
     interface.out["sol"]["real_time_to_optimize"] = perf_counter() - tic
     interface.out["sol"]["iter"] = interface.shaked_ocp_solver.stats()["iter_count"]
     interface.out["sol"]["inf_du"] = (
@@ -158,7 +203,9 @@ def generic_solve(interface: SolverInterface, expand_during_shake_tree: Bool = F
         else None
     )
     # To match acados convention (0 = success, 1 = error)
-    interface.out["sol"]["status"] = int(not interface.shaked_ocp_solver.stats()["success"])
+    interface.out["sol"]["status"] = int(
+        not interface.shaked_ocp_solver.stats()["success"]
+    )
     interface.out["sol"]["solver"] = interface.solver_name
 
     # Make sure the graphs are showing the last iteration
@@ -175,7 +222,9 @@ def generic_solve(interface: SolverInterface, expand_during_shake_tree: Bool = F
     return interface.out
 
 
-def _shake_penalties_tree(ocp, penalties_cx: CX, v: CX, v_bounds: DoubleNpArrayTuple, expand: Bool):
+def _shake_penalties_tree(
+    ocp, penalties_cx: CX, v: CX, v_bounds: DoubleNpArrayTuple, expand: Bool
+):
     """
     Remove the dt in the objectives and constraints if they are constant
 
@@ -251,13 +300,17 @@ def generic_dispatch_bounds(interface, include_g: Bool, include_g_internal: Bool
     all_g_bounds = Bounds("all_g", interpolation=InterpolationType.CONSTANT)
 
     if include_g_internal:
-        all_g = vertcat(all_g, interface.get_all_penalties(interface.ocp, interface.ocp.g_internal))
+        all_g = vertcat(
+            all_g, interface.get_all_penalties(interface.ocp, interface.ocp.g_internal)
+        )
         for g in interface.ocp.g_internal:
             if g != []:
                 all_g_bounds.concatenate(g.bounds)
 
     if include_g:
-        all_g = vertcat(all_g, interface.get_all_penalties(interface.ocp, interface.ocp.g))
+        all_g = vertcat(
+            all_g, interface.get_all_penalties(interface.ocp, interface.ocp.g)
+        )
         for g in interface.ocp.g:
             if g != []:
                 all_g_bounds.concatenate(g.bounds)
@@ -278,7 +331,9 @@ def generic_dispatch_bounds(interface, include_g: Bool, include_g_internal: Bool
                         all_g_bounds.concatenate(g.bounds)
 
     if isinstance(all_g_bounds.min, (SX, MX)) or isinstance(all_g_bounds.max, (SX, MX)):
-        raise RuntimeError(f"{interface.solver_name} doesn't support SX/MX types in constraints bounds")
+        raise RuntimeError(
+            f"{interface.solver_name} doesn't support SX/MX types in constraints bounds"
+        )
     return all_g, all_g_bounds
 
 
@@ -293,17 +348,28 @@ def generic_dispatch_obj_func(interface) -> CX:
     """
 
     all_objectives = interface.ocp.cx()
-    all_objectives = vertcat(all_objectives, interface.get_all_penalties(interface.ocp, interface.ocp.J_internal))
-    all_objectives = vertcat(all_objectives, interface.get_all_penalties([], interface.ocp.J))
+    all_objectives = vertcat(
+        all_objectives,
+        interface.get_all_penalties(interface.ocp, interface.ocp.J_internal),
+    )
+    all_objectives = vertcat(
+        all_objectives, interface.get_all_penalties([], interface.ocp.J)
+    )
 
     for nlp in interface.ocp.nlp:
-        all_objectives = vertcat(all_objectives, interface.get_all_penalties(nlp, nlp.J_internal))
-        all_objectives = vertcat(all_objectives, interface.get_all_penalties(nlp, nlp.J))
+        all_objectives = vertcat(
+            all_objectives, interface.get_all_penalties(nlp, nlp.J_internal)
+        )
+        all_objectives = vertcat(
+            all_objectives, interface.get_all_penalties(nlp, nlp.J)
+        )
 
     return all_objectives
 
 
-def generic_get_all_penalties(interface, nlp: NonLinearProgram, penalties, scaled: Bool = True):
+def generic_get_all_penalties(
+    interface, nlp: NonLinearProgram, penalties, scaled: Bool = True
+):
     """
     Parse the penalties of the full ocp to a SQP-friendly one
 
@@ -330,11 +396,15 @@ def generic_get_all_penalties(interface, nlp: NonLinearProgram, penalties, scale
         if not penalty:
             continue
 
-        phases_dt = PenaltyHelpers.phases_dt(penalty, interface.ocp, lambda _: interface.ocp.dt_parameter.cx)
+        phases_dt = PenaltyHelpers.phases_dt(
+            penalty, interface.ocp, lambda _: interface.ocp.dt_parameter.cx
+        )
 
         if penalty.multi_thread:
             if penalty.target is not None and len(penalty.target.shape) != 2:
-                raise NotImplementedError("multi_thread penalty with target shape != [n x m] is not implemented yet")
+                raise NotImplementedError(
+                    "multi_thread penalty with target shape != [n x m] is not implemented yet"
+                )
 
             t0 = nlp.cx()
             x = nlp.cx()
@@ -344,8 +414,8 @@ def generic_get_all_penalties(interface, nlp: NonLinearProgram, penalties, scale
             weight = DM()
             target = DM()
             for idx in range(len(penalty.node_idx)):
-                t0_tp, x_tp, u_tp, p, a_tp, d_tp, weight_tp, target_tp = _get_weighted_function_inputs(
-                    penalty, idx, ocp, nlp, scaled
+                t0_tp, x_tp, u_tp, p, a_tp, d_tp, weight_tp, target_tp = (
+                    _get_weighted_function_inputs(penalty, idx, ocp, nlp, scaled)
                 )
 
                 t0 = horzcat(t0, t0_tp)
@@ -369,7 +439,13 @@ def generic_get_all_penalties(interface, nlp: NonLinearProgram, penalties, scale
                 target = horzcat(target, target_tp)
 
             # We can call penalty.weighted_function[0] since multi-thread declares all the node at [0]
-            tp = reshape(penalty.weighted_function[0](t0, phases_dt, x, u, p, a, d, weight, target), -1, 1)
+            tp = reshape(
+                penalty.weighted_function[0](
+                    t0, phases_dt, x, u, p, a, d, weight, target
+                ),
+                -1,
+                1,
+            )
         else:
             tp = interface.ocp.cx()
             for idx in range(len(penalty.node_idx)):
@@ -377,17 +453,30 @@ def generic_get_all_penalties(interface, nlp: NonLinearProgram, penalties, scale
                     nlp.states.node_index = penalty.node_idx[idx]
                     nlp.controls.node_index = penalty.node_idx[idx]
                     nlp.algebraic_states.node_index = penalty.node_idx[idx]
-                t0, x, u, p, a, d, weight, target = _get_weighted_function_inputs(penalty, idx, ocp, nlp, scaled)
+                t0, x, u, p, a, d, weight, target = _get_weighted_function_inputs(
+                    penalty, idx, ocp, nlp, scaled
+                )
 
                 node_idx = penalty.node_idx[idx]
-                tp = vertcat(tp, penalty.weighted_function[node_idx](t0, phases_dt, x, u, p, a, d, weight, target))
+                tp = vertcat(
+                    tp,
+                    penalty.weighted_function[node_idx](
+                        t0, phases_dt, x, u, p, a, d, weight, target
+                    ),
+                )
 
         out = vertcat(out, sum2(tp))
     return out
 
 
-def _get_weighted_function_inputs(penalty, penalty_idx: Int, ocp, nlp: NonLinearProgram, scaled: Bool):
-    t0 = PenaltyHelpers.t0(penalty, penalty_idx, lambda p_idx, n_idx: ocp.node_time(phase_idx=p_idx, node_idx=n_idx))
+def _get_weighted_function_inputs(
+    penalty, penalty_idx: Int, ocp, nlp: NonLinearProgram, scaled: Bool
+):
+    t0 = PenaltyHelpers.t0(
+        penalty,
+        penalty_idx,
+        lambda p_idx, n_idx: ocp.node_time(phase_idx=p_idx, node_idx=n_idx),
+    )
 
     weight = PenaltyHelpers.weight(penalty, penalty_idx)
     target = PenaltyHelpers.target(penalty, penalty_idx)
@@ -396,31 +485,43 @@ def _get_weighted_function_inputs(penalty, penalty_idx: Int, ocp, nlp: NonLinear
         x = PenaltyHelpers.states(
             penalty,
             penalty_idx,
-            lambda p_idx, n_idx, sn_idx: _get_x(ocp, p_idx, n_idx, sn_idx, scaled, penalty),
+            lambda p_idx, n_idx, sn_idx: _get_x(
+                ocp, p_idx, n_idx, sn_idx, scaled, penalty
+            ),
         )
         u = PenaltyHelpers.controls(
             penalty,
             penalty_idx,
-            lambda p_idx, n_idx, sn_idx: _get_u(ocp, p_idx, n_idx, sn_idx, scaled, penalty),
+            lambda p_idx, n_idx, sn_idx: _get_u(
+                ocp, p_idx, n_idx, sn_idx, scaled, penalty
+            ),
         )
         p = PenaltyHelpers.parameters(
-            penalty, penalty_idx, lambda p_idx, n_idx, sn_idx: _get_p(ocp, p_idx, n_idx, sn_idx, scaled)
+            penalty,
+            penalty_idx,
+            lambda p_idx, n_idx, sn_idx: _get_p(ocp, p_idx, n_idx, sn_idx, scaled),
         )
         a = PenaltyHelpers.states(
             penalty,
             penalty_idx,
-            lambda p_idx, n_idx, sn_idx: _get_a(ocp, p_idx, n_idx, sn_idx, scaled, penalty),
+            lambda p_idx, n_idx, sn_idx: _get_a(
+                ocp, p_idx, n_idx, sn_idx, scaled, penalty
+            ),
         )
         d = PenaltyHelpers.numerical_timeseries(
             penalty,
             penalty_idx,
-            lambda p_idx, n_idx, sn_idx: get_numerical_timeseries(ocp, p_idx, n_idx, sn_idx),
+            lambda p_idx, n_idx, sn_idx: get_numerical_timeseries(
+                ocp, p_idx, n_idx, sn_idx
+            ),
         )
     else:
         x = []
         u = []
         p = PenaltyHelpers.parameters(
-            penalty, penalty_idx, lambda p_idx, n_idx, sn_idx: _get_p(ocp, p_idx, n_idx, sn_idx, scaled)
+            penalty,
+            penalty_idx,
+            lambda p_idx, n_idx, sn_idx: _get_p(ocp, p_idx, n_idx, sn_idx, scaled),
         )
         a = []
         d = []
@@ -428,15 +529,23 @@ def _get_weighted_function_inputs(penalty, penalty_idx: Int, ocp, nlp: NonLinear
     return t0, x, u, p, a, d, weight, target
 
 
-def _get_x(ocp, phase_idx: Int, node_idx: Int, subnodes_idx: Slicy, scaled: Bool, penalty):
+def _get_x(
+    ocp, phase_idx: Int, node_idx: Int, subnodes_idx: Slicy, scaled: Bool, penalty
+):
     values = ocp.nlp[phase_idx].X_scaled if scaled else ocp.nlp[phase_idx].X
-    x = PenaltyHelpers.get_states(ocp, penalty, phase_idx, node_idx, subnodes_idx, values)
+    x = PenaltyHelpers.get_states(
+        ocp, penalty, phase_idx, node_idx, subnodes_idx, values
+    )
     return x
 
 
-def _get_u(ocp, phase_idx: Int, node_idx: Int, subnodes_idx: Slicy, scaled: Bool, penalty):
+def _get_u(
+    ocp, phase_idx: Int, node_idx: Int, subnodes_idx: Slicy, scaled: Bool, penalty
+):
     values = ocp.nlp[phase_idx].U_scaled if scaled else ocp.nlp[phase_idx].U
-    u = PenaltyHelpers.get_controls(ocp, penalty, phase_idx, node_idx, subnodes_idx, values)
+    u = PenaltyHelpers.get_controls(
+        ocp, penalty, phase_idx, node_idx, subnodes_idx, values
+    )
     return u
 
 
@@ -444,9 +553,13 @@ def _get_p(ocp, phase_idx: Int, node_idx: Int, subnodes_idx: Slicy, scaled: Bool
     return ocp.parameters.scaled.cx if scaled else ocp.parameters.scaled
 
 
-def _get_a(ocp, phase_idx: Int, node_idx: Int, subnodes_idx: Slicy, scaled: Bool, penalty):
+def _get_a(
+    ocp, phase_idx: Int, node_idx: Int, subnodes_idx: Slicy, scaled: Bool, penalty
+):
     values = ocp.nlp[phase_idx].A_scaled if scaled else ocp.nlp[phase_idx].A
-    a = PenaltyHelpers.get_states(ocp, penalty, phase_idx, node_idx, subnodes_idx, values)
+    a = PenaltyHelpers.get_states(
+        ocp, penalty, phase_idx, node_idx, subnodes_idx, values
+    )
     return a
 
 

@@ -9,7 +9,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "bioptim.examples",
-            "justMyCode": true,
+            "justMyCode": false,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             },
@@ -33,7 +33,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/bioptim/examples/getting_started/pendulum.py",
             "console": "integratedTerminal",
-            "justMyCode": true,
+            "justMyCode": false,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             },
@@ -45,7 +45,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/bioptim/examples/muscle_driven_ocp/custom_parameters.py",
             "console": "integratedTerminal",
-            "justMyCode": true,
+            "justMyCode": false,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             },

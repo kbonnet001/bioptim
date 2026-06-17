@@ -15,10 +15,6 @@ estimated data can be compared to real data.
 
 from copy import copy
 
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy.integrate import solve_ivp
-
 from bioptim import (
     BioModel,
     TorqueBiorbdModel,
@@ -34,17 +30,25 @@ from bioptim import (
     PhaseDynamics,
     SolutionMerge,
 )
+from bioptim.examples.utils import ExampleUtils
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.integrate import solve_ivp
 
 
 def states_to_markers(bio_model, states):
     nq = bio_model.nb_q
     n_mark = bio_model.nb_markers
-    return np.array(bio_model.markers()(states[:nq, :], [])).reshape((3, n_mark, -1), order="F")
+    return np.array(bio_model.markers()(states[:nq, :], [])).reshape(
+        (3, n_mark, -1), order="F"
+    )
 
 
 def generate_data(bio_model, tf, x0, t_max, n_shoot, noise_std, show_plots=False):
     def pendulum_ode(t, x, u):
-        return np.concatenate((x[nq:, np.newaxis], qddot_func(x[:nq], x[nq:], u, [], [])))[:, 0]
+        return np.concatenate(
+            (x[nq:, np.newaxis], qddot_func(x[:nq], x[nq:], u, [], []))
+        )[:, 0]
 
     nq = bio_model.nb_q
     qddot_func = bio_model.forward_dynamics()
@@ -52,7 +56,9 @@ def generate_data(bio_model, tf, x0, t_max, n_shoot, noise_std, show_plots=False
     # Simulated data
     dt = tf / n_shoot
     controls = np.zeros((bio_model.nb_tau, n_shoot))  # Control trajectory
-    controls[0, :] = (-np.ones(n_shoot) + np.sin(np.linspace(0, tf, num=n_shoot))) * t_max
+    controls[0, :] = (
+        -np.ones(n_shoot) + np.sin(np.linspace(0, tf, num=n_shoot))
+    ) * t_max
     states = np.zeros((bio_model.nb_q + bio_model.nb_qdot, n_shoot))  # State trajectory
 
     for n in range(n_shoot):
@@ -127,7 +133,9 @@ def prepare_mhe(
     -------
 
     """
-    new_objectives = Objective(ObjectiveFcn.Lagrange.MINIMIZE_MARKERS, node=Node.ALL, weight=1000, list_index=0)
+    new_objectives = Objective(
+        ObjectiveFcn.Lagrange.MINIMIZE_MARKERS, node=Node.ALL, weight=1000, list_index=0
+    )
 
     x_bounds = BoundsList()
     x_bounds["q"] = bio_model.bounds_from_ranges("q")
@@ -137,8 +145,12 @@ def prepare_mhe(
     u_bounds["tau"] = [-max_torque, 0.0], [max_torque, 0.0]
 
     x_init_list = InitialGuessList()
-    x_init_list.add("q", x_init[: bio_model.nb_q, :], interpolation=InterpolationType.EACH_FRAME)
-    x_init_list.add("qdot", x_init[bio_model.nb_q :, :], interpolation=InterpolationType.EACH_FRAME)
+    x_init_list.add(
+        "q", x_init[: bio_model.nb_q, :], interpolation=InterpolationType.EACH_FRAME
+    )
+    x_init_list.add(
+        "qdot", x_init[bio_model.nb_q :, :], interpolation=InterpolationType.EACH_FRAME
+    )
 
     u_init_list = InitialGuessList()
     u_init_list.add("tau", u_init, interpolation=InterpolationType.EACH_FRAME)
@@ -147,7 +159,9 @@ def prepare_mhe(
         bio_model,
         window_len,
         window_duration,
-        dynamics=DynamicsOptions(expand_dynamics=expand_dynamics, phase_dynamics=phase_dynamics),
+        dynamics=DynamicsOptions(
+            expand_dynamics=expand_dynamics, phase_dynamics=phase_dynamics
+        ),
         common_objective_functions=new_objectives,
         x_bounds=x_bounds,
         u_bounds=u_bounds,
@@ -182,10 +196,12 @@ def get_solver_options(solver):
 
 
 def main():
-    biorbd_model_path = "models/cart_pendulum.bioMod"
+    biorbd_model_path = ExampleUtils.folder + "/models/cart_pendulum.bioMod"
     bio_model = TorqueBiorbdModel(biorbd_model_path)
 
-    solver = Solver.IPOPT()  # or Solver.ACADOS()  # If ACADOS is used, it must be manually installed
+    solver = (
+        Solver.IPOPT()
+    )  # or Solver.ACADOS()  # If ACADOS is used, it must be manually installed
     final_time = 5
     n_shoot_per_second = 100
     window_len = 10
@@ -196,7 +212,13 @@ def main():
     noise_std = 0.05  # STD of noise added to measurements
     torque_max = 2  # Max torque applied to the model
     states, markers, markers_noised, controls = generate_data(
-        bio_model, final_time, x0, torque_max, n_shoot_per_second * final_time, noise_std, show_plots=False
+        bio_model,
+        final_time,
+        x0,
+        torque_max,
+        n_shoot_per_second * final_time,
+        noise_std,
+        show_plots=False,
     )
 
     x_init = np.zeros((bio_model.nb_q * 2, window_len + 1))
@@ -227,9 +249,15 @@ def main():
     print(f"{solver} with Bioptim")
     print(f"Window size of MHE : {window_duration} s.")
     print(f"New measurement every : {1 / n_shoot_per_second} s.")
-    print(f"Average time per iteration of MHE : {sol.solver_time_to_optimize / (n_frames_total - 1)} s.")
-    print(f"Average real time per iteration of MHE : {sol.real_time_to_optimize / (n_frames_total - 1)} s.")
-    print(f"Norm of the error on q = {np.linalg.norm(states[:bio_model.nb_q, :n_frames_total + 1] - sol_states['q'])}")
+    print(
+        f"Average time per iteration of MHE : {sol.solver_time_to_optimize / (n_frames_total - 1)} s."
+    )
+    print(
+        f"Average real time per iteration of MHE : {sol.real_time_to_optimize / (n_frames_total - 1)} s."
+    )
+    print(
+        f"Norm of the error on q = {np.linalg.norm(states[:bio_model.nb_q, :n_frames_total + 1] - sol_states['q'])}"
+    )
 
     markers_estimated = states_to_markers(bio_model, sol_states["q"])
 
@@ -240,9 +268,18 @@ def main():
         label="Noised markers trajectory",
     )
     plt.gca().set_prop_cycle(None)
-    plt.plot(markers[1, :, :n_frames_total].T, markers[2, :, :n_frames_total].T, label="True markers trajectory")
+    plt.plot(
+        markers[1, :, :n_frames_total].T,
+        markers[2, :, :n_frames_total].T,
+        label="True markers trajectory",
+    )
     plt.gca().set_prop_cycle(None)
-    plt.plot(markers_estimated[1, :, :].T, markers_estimated[2, :, :].T, "o", label="Estimated marker trajectory")
+    plt.plot(
+        markers_estimated[1, :, :].T,
+        markers_estimated[2, :, :].T,
+        "o",
+        label="Estimated marker trajectory",
+    )
     plt.legend()
 
     plt.figure()

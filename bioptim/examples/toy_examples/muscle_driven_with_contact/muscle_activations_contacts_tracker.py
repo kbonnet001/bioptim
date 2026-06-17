@@ -26,18 +26,26 @@ from bioptim import (
 
 # Load track_segment_on_rt
 spec = importlib.util.spec_from_file_location(
-    "data_to_track", str(Path(__file__).parent) + "/contact_forces_inequality_constraint_muscle.py"
+    "data_to_track",
+    str(Path(__file__).parent) + "/contact_forces_inequality_constraint_muscle.py",
 )
 data_to_track = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(data_to_track)
 
 
 def prepare_ocp(
-    biorbd_model_path, phase_time, n_shooting, muscle_activations_ref, contact_forces_ref, ode_solver=OdeSolver.RK4()
+    biorbd_model_path,
+    phase_time,
+    n_shooting,
+    muscle_activations_ref,
+    contact_forces_ref,
+    ode_solver=OdeSolver.RK4(),
 ):
     # BioModel path
     bio_model = MusclesBiorbdModel(
-        biorbd_model_path, with_residual_torque=True, contact_types=[ContactType.RIGID_EXPLICIT]
+        biorbd_model_path,
+        with_residual_torque=True,
+        contact_types=[ContactType.RIGID_EXPLICIT],
     )
     tau_min, tau_max, tau_init = -500.0, 500.0, 0.0
     activation_min, activation_max, activation_init = 0.0, 1.0, 0.5
@@ -45,14 +53,23 @@ def prepare_ocp(
     # Add objective functions
     objective_functions = ObjectiveList()
     objective_functions.add(
-        ObjectiveFcn.Lagrange.TRACK_CONTROL, key="muscles", target=muscle_activations_ref, node=Node.ALL_SHOOTING
+        ObjectiveFcn.Lagrange.TRACK_CONTROL,
+        key="muscles",
+        target=muscle_activations_ref,
+        node=Node.ALL_SHOOTING,
     )
     objective_functions.add(
-        ObjectiveFcn.Lagrange.TRACK_EXPLICIT_RIGID_CONTACT_FORCES, target=contact_forces_ref, node=Node.ALL_SHOOTING
+        ObjectiveFcn.Lagrange.TRACK_EXPLICIT_RIGID_CONTACT_FORCES,
+        target=contact_forces_ref,
+        node=Node.ALL_SHOOTING,
     )
-    objective_functions.add(ObjectiveFcn.Lagrange.MINIMIZE_STATE, key="qdot", weight=0.001)
+    objective_functions.add(
+        ObjectiveFcn.Lagrange.MINIMIZE_STATE, key="qdot", weight=0.001
+    )
     objective_functions.add(ObjectiveFcn.Lagrange.MINIMIZE_STATE, key="q", weight=0.001)
-    objective_functions.add(ObjectiveFcn.Lagrange.MINIMIZE_CONTROL, key="muscles", weight=0.001)
+    objective_functions.add(
+        ObjectiveFcn.Lagrange.MINIMIZE_CONTROL, key="muscles", weight=0.001
+    )
     # objective_functions.add(ObjectiveFcn.Lagrange.MINIMIZE_CONTROL, key="torque", weight=0.001)
 
     # Dynamics
@@ -76,7 +93,10 @@ def prepare_ocp(
     # Define control path constraint
     u_bounds = BoundsList()
     u_bounds["tau"] = ([tau_min] * bio_model.nb_tau, [tau_max] * bio_model.nb_tau)
-    u_bounds["muscles"] = ([activation_min] * bio_model.nb_muscles, [activation_max] * bio_model.nb_muscles)
+    u_bounds["muscles"] = (
+        [activation_min] * bio_model.nb_muscles,
+        [activation_max] * bio_model.nb_muscles,
+    )
 
     u_init = InitialGuessList()
     u_init["tau"] = [tau_init] * bio_model.nb_tau
@@ -100,6 +120,7 @@ def prepare_ocp(
 def main():
     # Define the problem
     model_path = "models/2segments_4dof_2contacts_1muscle.bioMod"
+    model_path = "/home/klbonnet/Documents/bioptim/bioptim/examples/models/2segments_4dof_2contacts_1muscle.bioMod"
     final_time = 0.7
     ns = 20
 
@@ -111,16 +132,30 @@ def main():
         min_bound=50,
         max_bound=np.inf,
     )
+
     sol = ocp_to_track.solve()
 
     states = sol.decision_states(to_merge=SolutionMerge.NODES)
     controls = sol.decision_controls(to_merge=SolutionMerge.NODES)
-    q, qdot, tau, mus = states["q"], states["qdot"], controls["tau"], controls["muscles"]
+    q, qdot, tau, mus = (
+        states["q"],
+        states["qdot"],
+        controls["tau"],
+        controls["muscles"],
+    )
 
     x = np.concatenate((q, qdot), axis=0)
     u = np.concatenate((tau, mus), axis=0)
+
     contact_forces_ref = (
-        np.array([ocp_to_track.nlp[0].contact_forces_func([], x[:, i], u[:, i], [], [], []) for i in range(ns)])
+        np.array(
+            [
+                ocp_to_track.nlp[0].rigid_contact_forces_func(
+                    [], x[:, i], u[:, i], [], [], []
+                )
+                for i in range(ns)
+            ]
+        )
         .squeeze()
         .T
     )

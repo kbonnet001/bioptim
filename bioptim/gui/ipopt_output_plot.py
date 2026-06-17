@@ -25,11 +25,17 @@ def create_ipopt_output_plot(ocp, interface):
         axs[i].grid(True)
         axs[i].set_yscale("log")
 
-    plot = axs[2].plot([0], [1], linestyle="-", marker=".", color=colors(0.1), label="grad_f")
+    plot = axs[2].plot(
+        [0], [1], linestyle="-", marker=".", color=colors(0.1), label="grad_f"
+    )
     plots.append(plot[0])
-    plot = axs[2].plot([0], [1], linestyle="-", marker=".", color=colors(0.5), label="grad_g")
+    plot = axs[2].plot(
+        [0], [1], linestyle="-", marker=".", color=colors(0.5), label="grad_g"
+    )
     plots.append(plot[0])
-    plot = axs[2].plot([0], [1], linestyle="-", marker=".", color=colors(0.9), label="lam_x")
+    plot = axs[2].plot(
+        [0], [1], linestyle="-", marker=".", color=colors(0.9), label="lam_x"
+    )
     plots.append(plot[0])
     axs[2].legend()
 
@@ -44,7 +50,9 @@ def create_ipopt_output_plot(ocp, interface):
     v_sym = interface.ocp.variables_vector
 
     all_objectives = interface.dispatch_obj_func()
-    all_g, all_g_bounds = interface.dispatch_bounds(include_g=True, include_g_internal=True)
+    all_g, all_g_bounds = interface.dispatch_bounds(
+        include_g=True, include_g_internal=True
+    )
 
     grad_f_func = Function("grad_f", [v_sym], [gradient(sum1(all_objectives), v_sym)])
     grad_g_func = Function("grad_g", [v_sym], [jacobian(all_g, v_sym).T])
@@ -102,8 +110,14 @@ def update_ipopt_output_plot(args, ocp):
     ocp.ipopt_plots["plots"][4].set_ydata(ocp.ipopt_plots["grad_g"])
     ocp.ipopt_plots["plots"][5].set_ydata(ocp.ipopt_plots["lam_x"])
 
-    ocp.ipopt_plots["axs"][0].set_ylim(np.min(ocp.ipopt_plots["f"]), np.max(ocp.ipopt_plots["f"]))
-    ocp.ipopt_plots["axs"][1].set_ylim(np.min(ocp.ipopt_plots["inf_pr"]), np.max(ocp.ipopt_plots["inf_pr"]))
+    print("ouiiiii")
+
+    ocp.ipopt_plots["axs"][0].set_ylim(
+        np.min(ocp.ipopt_plots["f"]), np.max(ocp.ipopt_plots["f"])
+    )
+    ocp.ipopt_plots["axs"][1].set_ylim(
+        np.min(ocp.ipopt_plots["inf_pr"]), np.max(ocp.ipopt_plots["inf_pr"])
+    )
     ocp.ipopt_plots["axs"][2].set_ylim(
         np.min(
             np.array(
@@ -141,22 +155,34 @@ def save_ipopt_output(args, save_ipopt_iterations_info):
     """
     This function saves the ipopt outputs: x, f, g, lam_x, lam_g, lam_p every nb_iter_save iterations.
     """
-    f = args["f"]
+    print("aloah")
+    if not args:
+        print("oh no")
+        # IPOPT a planté (NaN) → on ne fait rien
+        return
+    f = np.array(args["f"])
 
-    if len(save_ipopt_iterations_info.f_list) != 0 and save_ipopt_iterations_info.f_list[-1] == f:
+    if (
+        len(save_ipopt_iterations_info.f_list) != 0
+        and save_ipopt_iterations_info.f_list[-1] == f
+    ):
         return
 
     save_ipopt_iterations_info.f_list += [f]
     save_ipopt_iterations_info.current_iter += 1
 
-    if save_ipopt_iterations_info.current_iter % save_ipopt_iterations_info.nb_iter_save != 0:
+    if (
+        save_ipopt_iterations_info.current_iter
+        % save_ipopt_iterations_info.nb_iter_save
+        != 0
+    ):
         return
     else:
-        x = args["x"]
-        g = args["g"]
-        lam_x = args["lam_x"]
-        lam_g = args["lam_g"]
-        lam_p = args["lam_p"]
+        x = np.array(args["x"])
+        g = np.array(args["g"])
+        lam_x = np.array(args["lam_x"])
+        lam_g = np.array(args["lam_g"])
+        lam_p = np.array(args["lam_p"])
 
         save_path = (
             save_ipopt_iterations_info.path_to_results
@@ -166,7 +192,17 @@ def save_ipopt_output(args, save_ipopt_iterations_info):
             + ".pkl"
         )
         with open(save_path, "wb") as file:
-            pickle.dump({"x": x, "f": f, "g": g, "lam_x": lam_x, "lam_g": lam_g, "lam_p": lam_p}, file)
+            pickle.dump(
+                {
+                    "x": x,
+                    "f": f,
+                    "g": g,
+                    "lam_x": lam_x,
+                    "lam_g": lam_g,
+                    "lam_p": lam_p,
+                },
+                file,
+            )
 
 
 class SaveIterationsInfo:

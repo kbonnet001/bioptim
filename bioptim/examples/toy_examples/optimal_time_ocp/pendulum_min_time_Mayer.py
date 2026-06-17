@@ -80,10 +80,19 @@ def prepare_ocp(
     # Add objective functions
     objective_functions = ObjectiveList()
     # A weight of -1 will maximize time
-    objective_functions.add(ObjectiveFcn.Mayer.MINIMIZE_TIME, weight=weight, min_bound=min_time, max_bound=max_time)
+    objective_functions.add(
+        ObjectiveFcn.Mayer.MINIMIZE_TIME,
+        weight=weight,
+        min_bound=min_time,
+        max_bound=max_time,
+    )
 
     # Dynamics
-    dynamics = DynamicsOptions(ode_solver=ode_solver, expand_dynamics=expand_dynamics, phase_dynamics=phase_dynamics)
+    dynamics = DynamicsOptions(
+        ode_solver=ode_solver,
+        expand_dynamics=expand_dynamics,
+        phase_dynamics=phase_dynamics,
+    )
 
     # Path constraint
     x_bounds = BoundsList()
@@ -118,13 +127,30 @@ def main():
     """
 
     biorbd_model_path = ExampleUtils.folder + "/models/pendulum.bioMod"
-    ocp = prepare_ocp(biorbd_model_path=biorbd_model_path, final_time=2, n_shooting=50, ode_solver=OdeSolver.RK4())
+    ocp = prepare_ocp(
+        biorbd_model_path=biorbd_model_path,
+        final_time=2,
+        n_shooting=50,
+        ode_solver=OdeSolver.RK4(),
+    )
 
     # Let's show the objectives
     ocp.add_plot_penalty(CostType.OBJECTIVES)
 
     # --- Solve the program --- #
+
+    ocp.save_intermediary_ipopt_iterations(
+        "/home/klbonnet/Documents/bioptim/bioptim/examples/toy_examples/optimal_time_ocp",
+        "result_file_name.pkl",
+        1,
+    )
+    ocp.add_plot_ipopt_outputs()
+    ocp.add_plot_penalty(CostType.ALL)
+
+    sol = ocp.solve(Solver.IPOPT(show_online_optim=platform.system() == "Linux"))
     sol = ocp.solve(Solver.IPOPT(online_optim=OnlineOptim.DEFAULT))
+
+    sol.graphs(save_name="prenom_des_figures")
 
     # --- Show results --- #
     times = float(sol.decision_time(to_merge=SolutionMerge.NODES)[-1, 0])

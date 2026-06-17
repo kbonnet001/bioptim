@@ -168,8 +168,17 @@ class Solution:
 
         # Solver options
         self.status, self.iterations = status, iterations
-        self.lam_g, self.lam_p, self.lam_x, self.inf_pr, self.inf_du = lam_g, lam_p, lam_x, inf_pr, inf_du
-        self.solver_time_to_optimize, self.real_time_to_optimize = solver_time_to_optimize, real_time_to_optimize
+        self.lam_g, self.lam_p, self.lam_x, self.inf_pr, self.inf_du = (
+            lam_g,
+            lam_p,
+            lam_x,
+            inf_pr,
+            inf_du,
+        )
+        self.solver_time_to_optimize, self.real_time_to_optimize = (
+            solver_time_to_optimize,
+            real_time_to_optimize,
+        )
 
         # Extract the data now for further use
         self._decision_states = None
@@ -181,7 +190,9 @@ class Solution:
         self.vector = vector
         if self.vector is not None:
             self.phases_dt = OptimizationVectorHelper.extract_phase_dt(ocp, vector)
-            self._stepwise_times = OptimizationVectorHelper.extract_step_times(ocp, vector)
+            self._stepwise_times = OptimizationVectorHelper.extract_step_times(
+                ocp, vector
+            )
 
             x, u, p, a = self.ocp.vector_layout.unstack_to_dicts(vector)
             u = OptimizationVectorHelper.control_duplication(u, ocp.nlp)
@@ -207,7 +218,10 @@ class Solution:
         if not isinstance(sol, dict):
             raise ValueError("The _sol entry should be a dictionary")
 
-        is_ipopt_like = sol["solver"] in (SolverType.IPOPT.value, SolverType.FATROP.value)
+        is_ipopt_like = sol["solver"] in (
+            SolverType.IPOPT.value,
+            SolverType.FATROP.value,
+        )
 
         return cls(
             ocp=ocp,
@@ -239,13 +253,17 @@ class Solution:
         """
 
         if not (isinstance(sol, (list, tuple)) and len(sol) == 5):
-            raise ValueError("_sol should be a list of tuple and the length should be 5")
+            raise ValueError(
+                "_sol should be a list of tuple and the length should be 5"
+            )
 
         n_param = len(ocp.parameters)
         all_ns = [nlp.ns for nlp in ocp.nlp]
 
         # Sanity checks
-        for i in range(len(sol)):  # Convert to list if necessary and copy for as many phases there are
+        for i in range(
+            len(sol)
+        ):  # Convert to list if necessary and copy for as many phases there are
             if isinstance(sol[i], InitialGuess):
                 tp = InitialGuessList()
                 for _ in range(len(all_ns)):
@@ -259,10 +277,13 @@ class Solution:
             )
 
         if len(sol[0]) != len(all_ns):
-            raise ValueError("The time step dt array len must match the number of phases")
+            raise ValueError(
+                "The time step dt array len must match the number of phases"
+            )
 
         is_right_size = [
-            len(s) != len(all_ns) if p != 3 and len(sol[p + 1].keys()) != 0 else False for p, s in enumerate(sol[:1])
+            len(s) != len(all_ns) if p != 3 and len(sol[p + 1].keys()) != 0 else False
+            for p, s in enumerate(sol[:1])
         ]
 
         if sum(is_right_size) != 0:
@@ -287,14 +308,22 @@ class Solution:
         for p, ss in enumerate(sol_states):
             nb_intermediate_frames = 1
             if isinstance(ocp.nlp[p].dynamics_type.ode_solver, OdeSolver.COLLOCATION):
-                nb_intermediate_frames = ocp.nlp[p].dynamics_type.ode_solver.polynomial_degree + 1
+                nb_intermediate_frames = (
+                    ocp.nlp[p].dynamics_type.ode_solver.polynomial_degree + 1
+                )
             for key in ss.keys():
                 ns = (
                     ocp.nlp[p].ns * nb_intermediate_frames
                     if ss[key].init.type == InterpolationType.ALL_POINTS
-                    else ocp.nlp[p].ns + 1 if ss[key].init.type != InterpolationType.EACH_FRAME else ocp.nlp[p].ns
+                    else (
+                        ocp.nlp[p].ns + 1
+                        if ss[key].init.type != InterpolationType.EACH_FRAME
+                        else ocp.nlp[p].ns
+                    )
                 )
-                ss[key].init.check_and_adjust_dimensions(len(ocp.nlp[p].states[key]), ns, "states")
+                ss[key].init.check_and_adjust_dimensions(
+                    len(ocp.nlp[p].states[key]), ns, "states"
+                )
 
             for i in range(all_ns[p] * nb_intermediate_frames + 1):
                 for key in ss.keys():
@@ -307,17 +336,23 @@ class Solution:
             off = 1 if control_type.has_a_final_node else 0
 
             for key in ss.keys():
-                ss[key].init.check_and_adjust_dimensions(len(ocp.nlp[p].controls[key]), all_ns[p] - 1 + off, "controls")
+                ss[key].init.check_and_adjust_dimensions(
+                    len(ocp.nlp[p].controls[key]), all_ns[p] - 1 + off, "controls"
+                )
 
             for i in range(all_ns[p] + off):
                 for key in ss.keys():
-                    vector = np.concatenate((vector, ss[key].init.evaluate_at(i)[:, np.newaxis]))
+                    vector = np.concatenate(
+                        (vector, ss[key].init.evaluate_at(i)[:, np.newaxis])
+                    )
 
         # For parameters
         if n_param:
             for p, ss in enumerate(sol_params):
                 for key in ss.keys():
-                    vector = np.concatenate((vector, np.repeat(ss[key].init, 1)[:, np.newaxis]))
+                    vector = np.concatenate(
+                        (vector, np.repeat(ss[key].init, 1)[:, np.newaxis])
+                    )
 
         # For algebraic_states variables
         for p, ss in enumerate(sol_algebraic_states):
@@ -328,7 +363,9 @@ class Solution:
 
             for i in range(all_ns[p] + 1):
                 for key in ss.keys():
-                    vector = np.concatenate((vector, ss[key].init.evaluate_at(i)[:, np.newaxis]))
+                    vector = np.concatenate(
+                        (vector, ss[key].init.evaluate_at(i)[:, np.newaxis])
+                    )
 
         return cls(ocp=ocp, vector=vector)
 
@@ -470,7 +507,12 @@ class Solution:
 
             if time_resolution == TimeResolution.NODE_SPAN:
                 if time_alignment == TimeAlignment.STATES:
-                    times.append([t if t.shape == (1, 1) else t[[0, -1]] for t in times_tp[nlp.phase_idx]])
+                    times.append(
+                        [
+                            t if t.shape == (1, 1) else t[[0, -1]]
+                            for t in times_tp[nlp.phase_idx]
+                        ]
+                    )
                 elif time_alignment == TimeAlignment.CONTROLS:
                     times.append([t[[0, -1]] for t in times_tp[nlp.phase_idx][:-1]])
             else:
@@ -478,10 +520,18 @@ class Solution:
                     if nlp.dynamics_type.ode_solver.is_direct_collocation:
                         if nlp.dynamics_type.ode_solver.duplicate_starting_point:
                             times.append(
-                                [t if t.shape == (1, 1) else vertcat(t[0], t[:-1]) for t in times_tp[nlp.phase_idx]]
+                                [
+                                    t if t.shape == (1, 1) else vertcat(t[0], t[:-1])
+                                    for t in times_tp[nlp.phase_idx]
+                                ]
                             )
                         else:
-                            times.append([t if t.shape == (1, 1) else t[:-1] for t in times_tp[nlp.phase_idx]])
+                            times.append(
+                                [
+                                    t if t.shape == (1, 1) else t[:-1]
+                                    for t in times_tp[nlp.phase_idx]
+                                ]
+                            )
 
                     else:
                         if time_resolution == TimeResolution.STEPWISE:
@@ -495,7 +545,12 @@ class Solution:
 
                 elif time_alignment == TimeAlignment.CONTROLS:
                     if nlp.control_type == ControlType.LINEAR_CONTINUOUS:
-                        times.append([(t if t.shape == (1, 1) else t[[0, -1]]) for t in times_tp[nlp.phase_idx]])
+                        times.append(
+                            [
+                                (t if t.shape == (1, 1) else t[[0, -1]])
+                                for t in times_tp[nlp.phase_idx]
+                            ]
+                        )
                         if len(times) < len(self.ocp.nlp):
                             # The point is duplicated for internal phases, but not the last one
                             times[-1][-1] = times[-1][-1][[0, 0]].T
@@ -504,10 +559,14 @@ class Solution:
                     elif nlp.control_type == ControlType.CONSTANT:
                         times.append([t[0] for t in times_tp[nlp.phase_idx]][:-1])
                     else:
-                        raise ValueError(f"Unrecognized control type {nlp.control_type}")
+                        raise ValueError(
+                            f"Unrecognized control type {nlp.control_type}"
+                        )
 
                 else:
-                    raise ValueError("time_alignment should be either TimeAlignment.STATES or TimeAlignment.CONTROLS")
+                    raise ValueError(
+                        "time_alignment should be either TimeAlignment.STATES or TimeAlignment.CONTROLS"
+                    )
 
         if not duplicated_times:
             for i in range(len(times)):
@@ -527,8 +586,12 @@ class Solution:
 
         if SolutionMerge.NODES in to_merge or SolutionMerge.ALL in to_merge:
             for phase_idx in range(len(times)):
-                np.concatenate((np.concatenate(times[phase_idx][:-1]), times[phase_idx][-1]))
-                times[phase_idx] = np.concatenate((np.concatenate(times[phase_idx][:-1]), times[phase_idx][-1]))
+                np.concatenate(
+                    (np.concatenate(times[phase_idx][:-1]), times[phase_idx][-1])
+                )
+                times[phase_idx] = np.concatenate(
+                    (np.concatenate(times[phase_idx][:-1]), times[phase_idx][-1])
+                )
 
         if (
             SolutionMerge.PHASES in to_merge and SolutionMerge.NODES not in to_merge
@@ -565,7 +628,9 @@ class Solution:
             return data
         return data if len(data) > 1 else data[0]
 
-    def stepwise_states(self, scaled: Bool = False, to_merge: SolutionMerge | list[SolutionMerge] = None):
+    def stepwise_states(
+        self, scaled: Bool = False, to_merge: SolutionMerge | list[SolutionMerge] = None
+    ):
         """
         Returns the stepwise integrated states
 
@@ -590,7 +655,9 @@ class Solution:
             return data
         return data if len(data) > 1 else data[0]
 
-    def decision_controls(self, scaled: Bool = False, to_merge: SolutionMerge | list[SolutionMerge] = None):
+    def decision_controls(
+        self, scaled: Bool = False, to_merge: SolutionMerge | list[SolutionMerge] = None
+    ):
         """
         Returns the decision controls
 
@@ -604,7 +671,9 @@ class Solution:
         """
         return self.stepwise_controls(scaled=scaled, to_merge=to_merge)
 
-    def stepwise_controls(self, scaled: Bool = False, to_merge: SolutionMerge | list[SolutionMerge] = None):
+    def stepwise_controls(
+        self, scaled: Bool = False, to_merge: SolutionMerge | list[SolutionMerge] = None
+    ):
         """
         Returns the controls. Note the final control is always present but set to np.nan if it is not defined
 
@@ -634,7 +703,9 @@ class Solution:
 
         return self.decision_parameters(scaled=False)
 
-    def decision_parameters(self, scaled: Bool = False, to_merge: SolutionMerge | list[SolutionMerge] = None) -> Any:
+    def decision_parameters(
+        self, scaled: Bool = False, to_merge: SolutionMerge | list[SolutionMerge] = None
+    ) -> Any:
         """
         Returns the decision parameters
 
@@ -655,9 +726,13 @@ class Solution:
             to_merge = [to_merge]
 
         if SolutionMerge.PHASES in to_merge:
-            raise ValueError("Cannot merge phases for parameters as it is not bound to phases")
+            raise ValueError(
+                "Cannot merge phases for parameters as it is not bound to phases"
+            )
         if SolutionMerge.NODES in to_merge:
-            raise ValueError("Cannot merge nodes for parameters as it is not bound to nodes")
+            raise ValueError(
+                "Cannot merge nodes for parameters as it is not bound to nodes"
+            )
 
         out = self._parameters.to_dict(scaled=scaled, to_merge=to_merge)
 
@@ -746,7 +821,15 @@ class Solution:
             The integrator to use for the integration
         """
 
-        has_direct_collocation = sum([nlp.dynamics_type.ode_solver.is_direct_collocation for nlp in self.ocp.nlp]) > 0
+        has_direct_collocation = (
+            sum(
+                [
+                    nlp.dynamics_type.ode_solver.is_direct_collocation
+                    for nlp in self.ocp.nlp
+                ]
+            )
+            > 0
+        )
         if has_direct_collocation and integrator == SolutionIntegrator.OCP:
             raise ValueError(
                 "When the ode_solver of the Optimal Control Problem is OdeSolver.COLLOCATION, "
@@ -756,7 +839,13 @@ class Solution:
             )
 
         has_trapezoidal = (
-            sum([isinstance(nlp.dynamics_type.ode_solver, OdeSolver.TRAPEZOIDAL) for nlp in self.ocp.nlp]) > 0
+            sum(
+                [
+                    isinstance(nlp.dynamics_type.ode_solver, OdeSolver.TRAPEZOIDAL)
+                    for nlp in self.ocp.nlp
+                ]
+            )
+            > 0
         )
         if has_trapezoidal and integrator == SolutionIntegrator.OCP:
             raise ValueError(
@@ -773,13 +862,17 @@ class Solution:
                     f"Please provide a dxdt in your DynamicsEvaluation of phase {i_phase}."
                 )
 
-        params = self._parameters.to_dict(to_merge=SolutionMerge.KEYS, scaled=True)[0][0]
+        params = self._parameters.to_dict(to_merge=SolutionMerge.KEYS, scaled=True)[0][
+            0
+        ]
         t_spans = self.t_span(time_alignment=TimeAlignment.CONTROLS)
         if len(self.ocp.nlp) == 1:
             t_spans = [t_spans]
         x = self._decision_states.to_dict(to_merge=SolutionMerge.KEYS, scaled=False)
         u = self._stepwise_controls.to_dict(to_merge=SolutionMerge.KEYS, scaled=False)
-        a = self._decision_algebraic_states.to_dict(to_merge=SolutionMerge.KEYS, scaled=False)
+        a = self._decision_algebraic_states.to_dict(
+            to_merge=SolutionMerge.KEYS, scaled=False
+        )
         return t_spans, x, u, params, a
 
     def integrate(
@@ -819,7 +912,9 @@ class Solution:
         out: list = [None] * len(self.ocp.nlp)
         integrated_sol = None
         for p, nlp in enumerate(self.ocp.nlp):
-            first_x = self._states_for_phase_integration(shooting_type, p, integrated_sol, x, u, params, a)
+            first_x = self._states_for_phase_integration(
+                shooting_type, p, integrated_sol, x, u, params, a
+            )
             d = []
             for n_idx in range(nlp.ns + 1):
                 d_tp = get_numerical_timeseries(self.ocp, p, n_idx, 0)
@@ -849,7 +944,9 @@ class Solution:
                         out[p][key][ns] = sol_ns[nlp.states[key].index, :]
                     else:
                         # Last node of last phase is always kept
-                        duplicated_times_condition = p == len(self.ocp.nlp) - 1 and ns == nlp.ns
+                        duplicated_times_condition = (
+                            p == len(self.ocp.nlp) - 1 and ns == nlp.ns
+                        )
                         out[p][key][ns] = (
                             sol_ns[nlp.states[key].index, :]
                             if duplicated_times_condition
@@ -857,11 +954,17 @@ class Solution:
                         )
 
         if to_merge:
-            out = SolutionData.from_unscaled(self.ocp, out, "x").to_dict(to_merge=to_merge, scaled=False)
+            out = SolutionData.from_unscaled(self.ocp, out, "x").to_dict(
+                to_merge=to_merge, scaled=False
+            )
 
         if return_time:
-            time_vector = self._return_time_vector(to_merge=to_merge, duplicated_times=duplicated_times)
-            return out if len(out) > 1 else out[0], time_vector if len(time_vector) > 1 else time_vector[0]
+            time_vector = self._return_time_vector(
+                to_merge=to_merge, duplicated_times=duplicated_times
+            )
+            return out if len(out) > 1 else out[0], (
+                time_vector if len(time_vector) > 1 else time_vector[0]
+            )
         else:
             return out if len(out) > 1 else out[0]
 
@@ -874,11 +977,15 @@ class Solution:
         """
         Integrated the states with different noise values sampled from the covariance matrix.
         """
-        from ...optimization.stochastic_optimal_control_program import StochasticOptimalControlProgram
+        from ...optimization.stochastic_optimal_control_program import (
+            StochasticOptimalControlProgram,
+        )
         from ...interfaces.interface_utils import get_numerical_timeseries
 
         if not isinstance(self.ocp, StochasticOptimalControlProgram):
-            raise ValueError("This method is only available for StochasticOptimalControlProgram.")
+            raise ValueError(
+                "This method is only available for StochasticOptimalControlProgram."
+            )
 
         t_spans, x, u, params, a = self._prepare_integrate(integrator=integrator)
 
@@ -898,10 +1005,14 @@ class Solution:
             for key in self.ocp.nlp[0].states.keys():
                 out[p][key] = [None] * nlp.n_states_nodes
                 for i_node in range(nlp.ns):
-                    out[p][key][i_node] = np.zeros((len(nlp.states[key].index), n_sub_nodes, size))
+                    out[p][key][i_node] = np.zeros(
+                        (len(nlp.states[key].index), n_sub_nodes, size)
+                    )
                 out[p][key][nlp.ns] = np.zeros((len(nlp.states[key].index), 1, size))
 
-        cov_matrix = StochasticBioModel.reshape_to_matrix(u[0][0][cov_index, 0], self.ocp.nlp[0].model.matrix_shape_cov)
+        cov_matrix = StochasticBioModel.reshape_to_matrix(
+            u[0][0][cov_index, 0], self.ocp.nlp[0].model.matrix_shape_cov
+        )
         first_x = np.random.multivariate_normal(x[0][0][:, 0], cov_matrix, size=size).T
         for p, nlp in enumerate(self.ocp.nlp):
             d = []
@@ -914,16 +1025,24 @@ class Solution:
 
             motor_noise = np.zeros((len(params[motor_noise_index]), nlp.ns, size))
             for i in range(len(params[motor_noise_index])):
-                motor_noise[i, :] = np.random.normal(0, params[motor_noise_index[i]], size=(nlp.ns, size))
+                motor_noise[i, :] = np.random.normal(
+                    0, params[motor_noise_index[i]], size=(nlp.ns, size)
+                )
             sensory_noise = (
-                np.zeros((len(sensory_noise_index), nlp.ns, size)) if sensory_noise_index is not None else None
+                np.zeros((len(sensory_noise_index), nlp.ns, size))
+                if sensory_noise_index is not None
+                else None
             )
             if sensory_noise_index is not None:
                 for i in range(len(params[sensory_noise_index])):
-                    sensory_noise[i, :] = np.random.normal(0, params[sensory_noise_index[i]], size=(nlp.ns, size))
+                    sensory_noise[i, :] = np.random.normal(
+                        0, params[sensory_noise_index[i]], size=(nlp.ns, size)
+                    )
 
             without_noise_idx = [
-                i for i in range(len(params)) if i not in motor_noise_index and i not in sensory_noise_index
+                i
+                for i in range(len(params))
+                if i not in motor_noise_index and i not in sensory_noise_index
             ]
             parameters_cx = nlp.parameters.cx[without_noise_idx]
             parameters = params[without_noise_idx]
@@ -932,12 +1051,21 @@ class Solution:
                 list_of_dynamics = []
                 for node in range(nlp.ns):
                     params_this_time += [nlp.parameters.cx]
-                    params_this_time[node][motor_noise_index, :] = motor_noise[:, node, i_random]
+                    params_this_time[node][motor_noise_index, :] = motor_noise[
+                        :, node, i_random
+                    ]
                     if sensory_noise_index is not None:
-                        params_this_time[node][sensory_noise_index, :] = sensory_noise[:, node, i_random]
+                        params_this_time[node][sensory_noise_index, :] = sensory_noise[
+                            :, node, i_random
+                        ]
 
-                    if len(nlp.extra_dynamics_func) > 1 or len(nlp.extra_dynamics_defects_func) > 1:
-                        raise NotImplementedError("Noisy integration is not available for multiple extra dynamics.")
+                    if (
+                        len(nlp.extra_dynamics_func) > 1
+                        or len(nlp.extra_dynamics_defects_func) > 1
+                    ):
+                        raise NotImplementedError(
+                            "Noisy integration is not available for multiple extra dynamics."
+                        )
                     cas_func = Function(
                         "noised_extra_dynamics",
                         [
@@ -967,7 +1095,9 @@ class Solution:
                     nlp=nlp,
                     t=t_spans[p],
                     x=[np.reshape(first_x[:, i_random], (-1, 1))],
-                    u=u[p],  # No need to add noise on the controls, the extra_dynamics should do it for us
+                    u=u[
+                        p
+                    ],  # No need to add noise on the controls, the extra_dynamics should do it for us
                     a=a[p],
                     p=parameters,
                     d=d,
@@ -978,12 +1108,16 @@ class Solution:
                         states_integrated = (
                             integrated_sol[i_node][nlp.states[key].index, :]
                             if n_sub_nodes > 1
-                            else integrated_sol[i_node][nlp.states[key].index, 0].reshape(-1, 1)
+                            else integrated_sol[i_node][
+                                nlp.states[key].index, 0
+                            ].reshape(-1, 1)
                         )
                         out[p][key][i_node][:, :, i_random] = states_integrated
                 first_x[:, i_random] = np.reshape(integrated_sol[-1], (-1,))
         if to_merge:
-            out = SolutionData.from_unscaled(self.ocp, out, "x").to_dict(to_merge=to_merge, scaled=False)
+            out = SolutionData.from_unscaled(self.ocp, out, "x").to_dict(
+                to_merge=to_merge, scaled=False
+            )
 
         return out if len(out) > 1 else out[0]
 
@@ -1035,7 +1169,9 @@ class Solution:
         penalty = self.ocp.phase_transitions[phase_idx - 1]
 
         t0 = PenaltyHelpers.t0(penalty, 0, lambda p, n: self._stepwise_times[p][n][0])
-        dt = PenaltyHelpers.phases_dt(penalty, self.ocp, lambda p: np.array([self.phases_dt[idx] for idx in p]))
+        dt = PenaltyHelpers.phases_dt(
+            penalty, self.ocp, lambda p: np.array([self.phases_dt[idx] for idx in p])
+        )
         # Compute the error between the last state of the previous phase and the first state of the next phase
         # based on the phase transition objective or constraint function. That is why we need to concatenate
         # twice the last state
@@ -1045,7 +1181,9 @@ class Solution:
             penalty,
             0,
             lambda p, n, sn: (
-                decision_controls[p][n][:, sn.index()] if n < len(decision_controls[p]) else np.ndarray((0, 1))
+                decision_controls[p][n][:, sn.index()]
+                if n < len(decision_controls[p])
+                else np.ndarray((0, 1))
             ),
         )
         a = PenaltyHelpers.states(
@@ -1072,7 +1210,14 @@ class Solution:
                 f"please integrate with Shooting.SINGLE_DISCONTINUOUS_PHASE."
             )
 
-        return [(integrated_states[-1] if shooting_type == Shooting.SINGLE else decision_states[phase_idx][0]) + dx]
+        return [
+            (
+                integrated_states[-1]
+                if shooting_type == Shooting.SINGLE
+                else decision_states[phase_idx][0]
+            )
+            + dx
+        ]
 
     def _integrate_stepwise(self) -> None:
         """
@@ -1086,13 +1231,17 @@ class Solution:
         """
         from ...interfaces.interface_utils import get_numerical_timeseries
 
-        params = self._parameters.to_dict(to_merge=SolutionMerge.KEYS, scaled=True)[0][0]
+        params = self._parameters.to_dict(to_merge=SolutionMerge.KEYS, scaled=True)[0][
+            0
+        ]
         t_spans = self.t_span(time_alignment=TimeAlignment.CONTROLS)
         if len(self.ocp.nlp) == 1:
             t_spans = [t_spans]
         x = self._decision_states.to_dict(to_merge=SolutionMerge.KEYS, scaled=False)
         u = self._stepwise_controls.to_dict(to_merge=SolutionMerge.KEYS, scaled=False)
-        a = self._decision_algebraic_states.to_dict(to_merge=SolutionMerge.KEYS, scaled=False)
+        a = self._decision_algebraic_states.to_dict(
+            to_merge=SolutionMerge.KEYS, scaled=False
+        )
 
         unscaled: list = [None] * len(self.ocp.nlp)
         for p, nlp in enumerate(self.ocp.nlp):
@@ -1146,16 +1295,24 @@ class Solution:
         if isinstance(to_merge, SolutionMerge):
             to_merge = [to_merge]
         if SolutionMerge.NODES and SolutionMerge.PHASES in to_merge:
-            time_vector = np.concatenate(self.stepwise_time(to_merge=to_merge, duplicated_times=duplicated_times))
+            time_vector = np.concatenate(
+                self.stepwise_time(to_merge=to_merge, duplicated_times=duplicated_times)
+            )
         elif SolutionMerge.NODES in to_merge:
-            time_vector = self.stepwise_time(to_merge=to_merge, duplicated_times=duplicated_times)
+            time_vector = self.stepwise_time(
+                to_merge=to_merge, duplicated_times=duplicated_times
+            )
             for i in range(len(self.ocp.nlp)):
                 time_vector[i] = np.concatenate(time_vector[i])
         else:
-            time_vector = self.stepwise_time(to_merge=to_merge, duplicated_times=duplicated_times)
+            time_vector = self.stepwise_time(
+                to_merge=to_merge, duplicated_times=duplicated_times
+            )
         return time_vector
 
-    def interpolate(self, n_frames: Int | AnyIterable, scaled: Bool = False) -> AnyList | AnyDict:
+    def interpolate(
+        self, n_frames: Int | AnyIterable, scaled: Bool = False
+    ) -> AnyList | AnyDict:
         """
         Interpolate the states
 
@@ -1179,10 +1336,14 @@ class Solution:
         # Get the states, but do not bother the duplicates now
         if isinstance(n_frames, int):  # So merge phases
             t_all = [self.stepwise_time(to_merge=[SolutionMerge.ALL])]
-            states = [self._stepwise_states.to_dict(scaled=scaled, to_merge=SolutionMerge.ALL)]
+            states = [
+                self._stepwise_states.to_dict(scaled=scaled, to_merge=SolutionMerge.ALL)
+            ]
             n_frames = [n_frames]
 
-        elif not isinstance(n_frames, (list, tuple)) or len(n_frames) != len(self._stepwise_states.unscaled):
+        elif not isinstance(n_frames, (list, tuple)) or len(n_frames) != len(
+            self._stepwise_states.unscaled
+        ):
             raise ValueError(
                 "n_frames should either be an int to merge_phases phases "
                 "or a list of int of the number of phases dimension"
@@ -1192,7 +1353,9 @@ class Solution:
             t_all = self.stepwise_time(to_merge=[SolutionMerge.NODES])
             if len(self.ocp.nlp) == 1:
                 t_all = [t_all]
-            states = self._stepwise_states.to_dict(scaled=scaled, to_merge=[SolutionMerge.KEYS, SolutionMerge.NODES])
+            states = self._stepwise_states.to_dict(
+                scaled=scaled, to_merge=[SolutionMerge.KEYS, SolutionMerge.NODES]
+            )
 
         data = []
         for p in range(len(states)):
@@ -1201,7 +1364,9 @@ class Solution:
             nlp = self.ocp.nlp[p]
 
             # Now remove the duplicates
-            t_round = np.round(t_all[p], decimals=8)  # Otherwise, there are some numerical issues with np.unique
+            t_round = np.round(
+                t_all[p], decimals=8
+            )  # Otherwise, there are some numerical issues with np.unique
             t, idx = np.unique(t_round, return_index=True)
             x = states[p][:, idx]
 
@@ -1244,8 +1409,12 @@ class Solution:
             If a name is provided, the figures will be saved with this name
         """
 
-        plot_ocp = self.ocp.prepare_plots(automatically_organize, show_bounds, shooting_type, integrator)
-        self.ocp.plot_ipopt_outputs = False  # This plot is not possible on solutions (only in live plots)
+        plot_ocp = self.ocp.prepare_plots(
+            automatically_organize, show_bounds, shooting_type, integrator
+        )
+        self.ocp.plot_ipopt_outputs = (
+            False  # This plot is not possible on solutions (only in live plots)
+        )
         plot_ocp.update_data(*plot_ocp.parse_data(**{"x": self.vector}))
         if save_name:
             if save_name.endswith(".png"):
@@ -1324,35 +1493,57 @@ class Solution:
         val = []
         val_weighted = []
 
-        phases_dt = PenaltyHelpers.phases_dt(penalty, self.ocp, lambda p: np.array([self.phases_dt[idx] for idx in p]))
+        phases_dt = PenaltyHelpers.phases_dt(
+            penalty, self.ocp, lambda p: np.array([self.phases_dt[idx] for idx in p])
+        )
         params = PenaltyHelpers.parameters(
-            penalty, 0, lambda p_idx, n_idx, sn_idx: self._dispatch_params(self._parameters.scaled[0])
+            penalty,
+            0,
+            lambda p_idx, n_idx, sn_idx: self._dispatch_params(
+                self._parameters.scaled[0]
+            ),
         )
 
-        merged_x = self._decision_states.to_dict(to_merge=SolutionMerge.KEYS, scaled=True)
-        merged_u = self._stepwise_controls.to_dict(to_merge=SolutionMerge.KEYS, scaled=True)
-        merged_a = self._decision_algebraic_states.to_dict(to_merge=SolutionMerge.KEYS, scaled=True)
+        merged_x = self._decision_states.to_dict(
+            to_merge=SolutionMerge.KEYS, scaled=True
+        )
+        merged_u = self._stepwise_controls.to_dict(
+            to_merge=SolutionMerge.KEYS, scaled=True
+        )
+        merged_a = self._decision_algebraic_states.to_dict(
+            to_merge=SolutionMerge.KEYS, scaled=True
+        )
         for idx in range(len(penalty.node_idx)):
-            t0 = PenaltyHelpers.t0(penalty, idx, lambda p_idx, n_idx: self._stepwise_times[p_idx][n_idx][0])
+            t0 = PenaltyHelpers.t0(
+                penalty, idx, lambda p_idx, n_idx: self._stepwise_times[p_idx][n_idx][0]
+            )
             x = PenaltyHelpers.states(
                 penalty,
                 idx,
-                lambda p_idx, n_idx, sn_idx: self._get_x(self.ocp, penalty, p_idx, n_idx, sn_idx, merged_x),
+                lambda p_idx, n_idx, sn_idx: self._get_x(
+                    self.ocp, penalty, p_idx, n_idx, sn_idx, merged_x
+                ),
             )
             u = PenaltyHelpers.controls(
                 penalty,
                 idx,
-                lambda p_idx, n_idx, sn_idx: self._get_u(self.ocp, penalty, p_idx, n_idx, sn_idx, merged_u),
+                lambda p_idx, n_idx, sn_idx: self._get_u(
+                    self.ocp, penalty, p_idx, n_idx, sn_idx, merged_u
+                ),
             )
             a = PenaltyHelpers.states(
                 penalty,
                 idx,
-                lambda p_idx, n_idx, sn_idx: self._get_x(self.ocp, penalty, p_idx, n_idx, sn_idx, merged_a),
+                lambda p_idx, n_idx, sn_idx: self._get_x(
+                    self.ocp, penalty, p_idx, n_idx, sn_idx, merged_a
+                ),
             )
             d_tp = PenaltyHelpers.numerical_timeseries(
                 penalty,
                 idx,
-                lambda p_idx, n_idx, sn_idx: get_numerical_timeseries(self.ocp, p_idx, n_idx, sn_idx),
+                lambda p_idx, n_idx, sn_idx: get_numerical_timeseries(
+                    self.ocp, p_idx, n_idx, sn_idx
+                ),
             )
             d = np.array([]) if d_tp.shape == (0, 0) else np.array(d_tp)
 
@@ -1360,9 +1551,15 @@ class Solution:
             target = PenaltyHelpers.target(penalty, idx)
 
             node_idx = penalty.node_idx[idx]
-            val.append(penalty.function_non_threaded[node_idx](t0, phases_dt, x, u, params, a, d))
+            val.append(
+                penalty.function_non_threaded[node_idx](
+                    t0, phases_dt, x, u, params, a, d
+                )
+            )
             val_weighted.append(
-                penalty.weighted_function_non_threaded[node_idx](t0, phases_dt, x, u, params, a, d, weight, target)
+                penalty.weighted_function_non_threaded[node_idx](
+                    t0, phases_dt, x, u, params, a, d, weight, target
+                )
             )
 
         if self.ocp.n_threads > 1:
@@ -1377,13 +1574,17 @@ class Solution:
     @staticmethod
     def _get_x(ocp, penalty, phase_idx, node_idx, subnodes_idx, merged_x):
         values = merged_x[phase_idx]
-        x = PenaltyHelpers.get_states(ocp, penalty, phase_idx, node_idx, subnodes_idx, values)
+        x = PenaltyHelpers.get_states(
+            ocp, penalty, phase_idx, node_idx, subnodes_idx, values
+        )
         return x
 
     @staticmethod
     def _get_u(ocp, penalty, phase_idx, node_idx, subnodes_idx, merged_u):
         values = merged_u[phase_idx]
-        u = PenaltyHelpers.get_controls(ocp, penalty, phase_idx, node_idx, subnodes_idx, values)
+        u = PenaltyHelpers.get_controls(
+            ocp, penalty, phase_idx, node_idx, subnodes_idx, values
+        )
         return u
 
     @property
@@ -1422,12 +1623,20 @@ class Solution:
                     continue
                 val, val_weighted = self._get_penalty_cost(penalty)
                 self._detailed_cost += [
-                    {"name": penalty.type.__str__(), "cost_value_weighted": val_weighted, "cost_value": val}
+                    {
+                        "name": penalty.type.__str__(),
+                        "cost_value_weighted": val_weighted,
+                        "cost_value": val,
+                    }
                 ]
         for penalty in self.ocp.J:
             val, val_weighted = self._get_penalty_cost(penalty)
             self._detailed_cost += [
-                {"name": penalty.type.__str__(), "cost_value_weighted": val_weighted, "cost_value": val}
+                {
+                    "name": penalty.type.__str__(),
+                    "cost_value_weighted": val_weighted,
+                    "cost_value": val,
+                }
             ]
         return
 
@@ -1454,7 +1663,11 @@ class Solution:
                 if penalty.node in [Node.MULTINODES, Node.TRANSITION]:
                     node_name = penalty.node.name
                 else:
-                    node_name = f"{penalty.node[0]}" if isinstance(penalty.node[0], int) else penalty.node[0].name
+                    node_name = (
+                        f"{penalty.node[0]}"
+                        if isinstance(penalty.node[0], int)
+                        else penalty.node[0].name
+                    )
 
                 if self._detailed_cost is not None:
                     self._detailed_cost += [
@@ -1509,7 +1722,9 @@ class Solution:
 
             # Todo, min/mean/max
             print(f"\n--------- CONSTRAINTS ---------")
-            if print_penalty_list(ocp.g_internal, True) + print_penalty_list(ocp.g, True):
+            if print_penalty_list(ocp.g_internal, True) + print_penalty_list(
+                ocp.g, True
+            ):
                 print("")
 
             for idx_phase, nlp in enumerate(ocp.nlp):
@@ -1531,4 +1746,6 @@ class Solution:
             self.print_cost(CostType.OBJECTIVES)
             self.print_cost(CostType.CONSTRAINTS)
         else:
-            raise ValueError("print can only be called with CostType.OBJECTIVES or CostType.CONSTRAINTS")
+            raise ValueError(
+                "print can only be called with CostType.OBJECTIVES or CostType.CONSTRAINTS"
+            )

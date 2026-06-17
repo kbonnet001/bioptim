@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/bioptim/examples/getting_started/basic_ocp.py",
             "console": "integratedTerminal",
-            "justMyCode": true,
+            "justMyCode": false,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             },
@@ -39,5 +39,17 @@
             },
             "cwd": "${fileDirname}"
         },
+        {
+            "name": "Parameter",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/bioptim/examples/muscle_driven_ocp/custom_parameters.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}/bioptim/examples/muscle_driven_ocp/"
+        }
     ]
 }

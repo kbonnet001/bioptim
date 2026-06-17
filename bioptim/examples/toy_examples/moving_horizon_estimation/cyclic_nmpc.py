@@ -41,7 +41,9 @@ def prepare_nmpc(
     expand_dynamics=True,
 ):
     model = TorqueBiorbdModel(model_path)
-    dynamics = DynamicsOptions(expand_dynamics=expand_dynamics, phase_dynamics=phase_dynamics)
+    dynamics = DynamicsOptions(
+        expand_dynamics=expand_dynamics, phase_dynamics=phase_dynamics
+    )
 
     x_bound = BoundsList()
     x_bound["q"] = model.bounds_from_ranges("q")
@@ -54,7 +56,9 @@ def prepare_nmpc(
     # Rotate the wheel and force the marker of the hand to follow the marker on the wheel
     wheel_target = np.linspace(-np.pi, np.pi, cycle_len + 1)[np.newaxis, :]
     constraints = ConstraintList()
-    constraints.add(ConstraintFcn.TRACK_STATE, key="q", index=0, node=Node.ALL, target=wheel_target)
+    constraints.add(
+        ConstraintFcn.TRACK_STATE, key="q", index=0, node=Node.ALL, target=wheel_target
+    )
     constraints.add(
         ConstraintFcn.SUPERIMPOSE_MARKERS,
         node=Node.ALL,
@@ -76,6 +80,9 @@ def prepare_nmpc(
 
 
 def main():
+    model_path = (
+        "/home/klbonnet/Documents/bioptim/bioptim/examples/models/arm26_wheel.bioMod"
+    )
     biorbd_model_path = ExampleUtils.folder + "/models/arm2.bioMod"
     torque_max = 50
 
@@ -85,7 +92,9 @@ def main():
 
     nmpc = prepare_nmpc(biorbd_model_path, cycle_len=cycle_len, cycle_duration=cycle_duration, max_torque=torque_max)
 
-    def update_functions(_nmpc: CyclicNonlinearModelPredictiveControl, cycle_idx: int, _sol: Solution):
+    def update_functions(
+        _nmpc: CyclicNonlinearModelPredictiveControl, cycle_idx: int, _sol: Solution
+    ):
         return cycle_idx < n_cycles  # True if there are still some cycle to perform
 
     # Solve the program

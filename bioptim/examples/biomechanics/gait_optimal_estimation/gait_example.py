@@ -95,14 +95,10 @@ def prepare_ocp(
         values=f_ext_exp["right_leg"][3:9, :-1],
         point_of_application=f_ext_exp["right_leg"][:3, :-1],
     )
-    numerical_time_series = {
-        "external_forces": external_force_set.to_numerical_time_series()
-    }
+    numerical_time_series = {"external_forces": external_force_set.to_numerical_time_series()}
 
     # Model
-    bio_model = WithResidualExternalForces(
-        biorbd_model_path, external_force_set=external_force_set
-    )
+    bio_model = WithResidualExternalForces(biorbd_model_path, external_force_set=external_force_set)
 
     nb_q = bio_model.nb_q
     nb_muscles = bio_model.nb_muscles
@@ -144,33 +140,17 @@ def prepare_ocp(
         target=emg_normalized_exp[:, :-1],
     )
     objective_functions.add(
-        objective=ObjectiveFcn.Lagrange.TRACK_MARKERS,
-        weight=100.0,
-        node=Node.ALL,
-        target=markers_exp,
+        objective=ObjectiveFcn.Lagrange.TRACK_MARKERS, weight=100.0, node=Node.ALL, target=markers_exp
     )
     objective_functions.add(
         objective=ObjectiveFcn.Lagrange.TRACK_MARKERS,
         weight=1000.0,
         node=Node.ALL,
-        marker_index=[
-            "RCAL",
-            "RMFH1",
-            "RMFH5",
-            "R_foot_up",
-            "LCAL",
-            "LMFH1",
-            "LMFH5",
-            "L_foot_up",
-        ],
+        marker_index=["RCAL", "RMFH1", "RMFH5", "R_foot_up", "LCAL", "LMFH1", "LMFH5", "L_foot_up"],
         target=markers_exp[:, np.hstack((r_foot_marker_index, l_foot_marker_index)), :],
     )
     objective_functions.add(
-        objective=ObjectiveFcn.Lagrange.TRACK_STATE,
-        key="q",
-        weight=1.0,
-        node=Node.ALL,
-        target=q_exp,
+        objective=ObjectiveFcn.Lagrange.TRACK_STATE, key="q", weight=1.0, node=Node.ALL, target=q_exp
     )
     objective_functions.add(
         objective=ObjectiveFcn.Lagrange.TRACK_STATE,
@@ -190,9 +170,7 @@ def prepare_ocp(
         key="contact_positions",
         node=Node.ALL_SHOOTING,
         weight=0.01,
-        target=np.vstack(
-            (f_ext_exp["left_leg"][0:3, :-1], f_ext_exp["right_leg"][0:3, :-1])
-        ),
+        target=np.vstack((f_ext_exp["left_leg"][0:3, :-1], f_ext_exp["right_leg"][0:3, :-1])),
     )
 
     # No constraints
@@ -210,12 +188,7 @@ def prepare_ocp(
     min_q[:6, :] = q_exp[:6, :] - 0.05
     max_q = q_exp[:, :] + 0.3
     max_q[:6, :] = q_exp[:6, :] + 0.05
-    x_bounds.add(
-        "q",
-        min_bound=min_q,
-        max_bound=max_q,
-        interpolation=InterpolationType.EACH_FRAME,
-    )
+    x_bounds.add("q", min_bound=min_q, max_bound=max_q, interpolation=InterpolationType.EACH_FRAME)
     # Bounds personalized to the subject's current joint velocities (not a real limitation, so it is executed with +-10)
     x_bounds.add(
         "qdot",
@@ -226,29 +199,17 @@ def prepare_ocp(
 
     x_init = InitialGuessList()
     x_init.add("q", initial_guess=q_exp, interpolation=InterpolationType.EACH_FRAME)
-    x_init.add(
-        "qdot", initial_guess=qdot_exp, interpolation=InterpolationType.EACH_FRAME
-    )
+    x_init.add("qdot", initial_guess=qdot_exp, interpolation=InterpolationType.EACH_FRAME)
 
     u_bounds = BoundsList()
-    u_bounds.add(
-        "tau",
-        min_bound=[-800] * nb_q,
-        max_bound=[800] * nb_q,
-        interpolation=InterpolationType.CONSTANT,
-    )
+    u_bounds.add("tau", min_bound=[-800] * nb_q, max_bound=[800] * nb_q, interpolation=InterpolationType.CONSTANT)
     u_bounds.add(
         "muscles",
         min_bound=[0.0001] * nb_muscles,
         max_bound=[1.0] * nb_muscles,
         interpolation=InterpolationType.CONSTANT,
     )
-    u_bounds.add(
-        "contact_forces",
-        min_bound=[-100] * 6,
-        max_bound=[100] * 6,
-        interpolation=InterpolationType.CONSTANT,
-    )
+    u_bounds.add("contact_forces", min_bound=[-100] * 6, max_bound=[100] * 6, interpolation=InterpolationType.CONSTANT)
     u_bounds.add(
         "contact_positions",
         min_bound=[-2, -2, 0.0, -2, -2, 0.0],
@@ -257,24 +218,12 @@ def prepare_ocp(
     )
 
     u_init = InitialGuessList()
-    u_init.add(
-        "tau", initial_guess=tau_exp[:, :-1], interpolation=InterpolationType.EACH_FRAME
-    )
-    u_init.add(
-        "muscles",
-        initial_guess=emg_normalized_exp[:, :-1],
-        interpolation=InterpolationType.EACH_FRAME,
-    )
-    u_init.add(
-        "contact_forces",
-        initial_guess=[0] * 6,
-        interpolation=InterpolationType.CONSTANT,
-    )
+    u_init.add("tau", initial_guess=tau_exp[:, :-1], interpolation=InterpolationType.EACH_FRAME)
+    u_init.add("muscles", initial_guess=emg_normalized_exp[:, :-1], interpolation=InterpolationType.EACH_FRAME)
+    u_init.add("contact_forces", initial_guess=[0] * 6, interpolation=InterpolationType.CONSTANT)
     u_init.add(
         "contact_positions",
-        initial_guess=np.vstack(
-            (f_ext_exp["left_leg"][0:3, :-1], f_ext_exp["right_leg"][0:3, :-1])
-        ),
+        initial_guess=np.vstack((f_ext_exp["left_leg"][0:3, :-1], f_ext_exp["right_leg"][0:3, :-1])),
         interpolation=InterpolationType.EACH_FRAME,
     )
 
@@ -344,19 +293,13 @@ def main():
         print("The problem did not converge :(")
 
     # Get the optimal solution
-    time_opt = sol.decision_time(
-        to_merge=SolutionMerge.NODES, time_alignment=TimeAlignment.STATES
-    )
+    time_opt = sol.decision_time(to_merge=SolutionMerge.NODES, time_alignment=TimeAlignment.STATES)
     q_opt = sol.decision_states(to_merge=SolutionMerge.NODES)["q"]
     qdot_opt = sol.decision_states(to_merge=SolutionMerge.NODES)["qdot"]
     tau_opt = sol.decision_controls(to_merge=SolutionMerge.NODES)["tau"]
     muscles_opt = sol.decision_controls(to_merge=SolutionMerge.NODES)["muscles"]
-    f_ext_value_opt = sol.decision_controls(to_merge=SolutionMerge.NODES)[
-        "contact_forces"
-    ]
-    f_ext_position_opt = sol.decision_controls(to_merge=SolutionMerge.NODES)[
-        "contact_positions"
-    ]
+    f_ext_value_opt = sol.decision_controls(to_merge=SolutionMerge.NODES)["contact_forces"]
+    f_ext_position_opt = sol.decision_controls(to_merge=SolutionMerge.NODES)["contact_positions"]
 
     # --- Animation --- #
     animate_solution(

@@ -2,13 +2,15 @@ from typing import Callable
 
 from casadi import DM
 
+
 from .biorbd_model import BiorbdModel
 from ...dynamics.dynamics_functions import DynamicsFunctions
+from ...limits.path_conditions import BoundsList, InitialGuessList
 from ...misc.mapping import BiMappingList
 from ...optimization.parameters import ParameterList
 from ...optimization.variable_scaling import VariableScaling
 from ...optimization.problem_type import SocpType
-
+from ...optimization.stochastic_optimal_control_program import StochasticOptimalControlProgram
 
 from ...misc.parameters_types import Int, Bool, NpArray
 
@@ -44,7 +46,6 @@ class StochasticBiorbdModel(BiorbdModel):
     def __init__(
         self,
         bio_model: list | tuple,
-        problem_type: SocpType,
         n_references: Int,
         n_feedbacks: Int,
         n_noised_states: Int,
@@ -56,30 +57,32 @@ class StochasticBiorbdModel(BiorbdModel):
         motor_noise_mapping: BiMappingList = BiMappingList(),
         use_sx: Bool = False,
         parameters: ParameterList = None,
-        friction_coefficients: NpArray = None,
+        parameter_init: InitialGuessList = None,
+        paremeter_bounds: BoundsList = None,
         **kwargs,
     ):
+        super().__init__(bio_model=bio_model, parameters=parameters, **kwargs)
+
         if parameters is None:
             parameters = ParameterList(use_sx=use_sx)
-        parameters.add(
-            "motor_noise",
-            lambda model, param: None,
-            size=motor_noise_magnitude.shape[0],
-            scaling=VariableScaling("motor_noise", [1.0] * motor_noise_magnitude.shape[0]),
-        )
-        parameters.add(
-            "sensory_noise",
-            lambda model, param: None,
-            size=sensory_noise_magnitude.shape[0],
-            scaling=VariableScaling("sensory_noise", [1.0] * sensory_noise_magnitude.shape[0]),
-        )
-        super().__init__(
-            bio_model=(bio_model if isinstance(bio_model, str) else bio_model.model),
+
+        StochasticOptimalControlProgram.augment_with_stochastic_variables(
+            motor_noise_magnitude=motor_noise_magnitude,
+            sensory_noise_magnitude=sensory_noise_magnitude,
             parameters=parameters,
-            friction_coefficients=friction_coefficients,
+            parameter_bounds=paremeter_bounds,
+            parameter_init=parameter_init,
+        )
+
+        super().__init__(
+            bio_model=(
+                bio_model
+                if isinstance(bio_model, str)
+                else (bio_model.model if hasattr(bio_model, "model") else bio_model)
+            ),
+            parameters=parameters,
             **kwargs,
         )
-        self.problem_type = problem_type
 
         self.motor_noise_magnitude = motor_noise_magnitude
         self.sensory_noise_magnitude = sensory_noise_magnitude
@@ -92,9 +95,9 @@ class StochasticBiorbdModel(BiorbdModel):
 
         self.motor_noise_mapping = motor_noise_mapping
 
-        self.n_references = n_references
+        self._n_references = n_references
         self.n_feedbacks = n_feedbacks
-        self.n_noised_states = n_noised_states
+        self._n_noised_states = n_noised_states
         self.n_noise = motor_noise_magnitude.shape[0] + sensory_noise_magnitude.shape[0]
         self.n_noised_controls = n_noised_controls
         if motor_noise_mapping is not None and "tau" in motor_noise_mapping:
@@ -107,3 +110,17 @@ class StochasticBiorbdModel(BiorbdModel):
         self.matrix_shape_cov = (self.n_noised_states, self.n_noised_states)
         self.matrix_shape_cov_cholesky = (self.n_noised_states, self.n_noised_states)
         self.matrix_shape_m = (self.n_noised_states, self.n_noised_states)
+
+    @property
+    def n_noised_states(self):
+        """
+        The number of noised states.
+        """
+        return self._n_noised_states
+
+    @property
+    def n_references(self):
+        """
+        The number of references for the feedback control.
+        """
+        return self._n_references

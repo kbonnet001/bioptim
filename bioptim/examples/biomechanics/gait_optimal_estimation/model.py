@@ -33,12 +33,7 @@ class WithResidualExternalForces(MusclesBiorbdModel):
     def control_configuration_functions(self):
         return super().control_configuration_functions + [
             lambda ocp, nlp: ConfigureVariables.configure_translational_forces(
-                ocp,
-                nlp,
-                as_states=False,
-                as_controls=True,
-                as_algebraic_states=False,
-                n_contacts=2,
+                ocp, nlp, as_states=False, as_controls=True, as_algebraic_states=False, n_contacts=2
             )
         ]
 
@@ -59,17 +54,11 @@ class WithResidualExternalForces(MusclesBiorbdModel):
         # Get torques
         tau_residual = DynamicsFunctions.get(nlp.controls["tau"], controls)
         mus_activations = DynamicsFunctions.get(nlp.controls["muscles"], controls)
-        tau = tau_residual + DynamicsFunctions.compute_tau_from_muscle(
-            nlp, q, qdot, mus_activations, None
-        )
+        tau = tau_residual + DynamicsFunctions.compute_tau_from_muscle(nlp, q, qdot, mus_activations, None)
 
         # Get external forces
-        f_ext_residual_value = DynamicsFunctions.get(
-            nlp.controls["contact_forces"], controls
-        )
-        f_ext_residual_position = DynamicsFunctions.get(
-            nlp.controls["contact_positions"], controls
-        )
+        f_ext_residual_value = DynamicsFunctions.get(nlp.controls["contact_forces"], controls)
+        f_ext_residual_position = DynamicsFunctions.get(nlp.controls["contact_positions"], controls)
         external_forces = nlp.get_external_forces(
             "external_forces", states, controls, algebraic_states, numerical_timeseries
         )
@@ -80,9 +69,7 @@ class WithResidualExternalForces(MusclesBiorbdModel):
         external_forces[9:12] += f_ext_residual_position[3:6]
         external_forces[15:18] += f_ext_residual_value[3:6]
 
-        ddq = nlp.model.forward_dynamics()(
-            q, qdot, tau, external_forces, nlp.parameters.cx
-        )
+        ddq = nlp.model.forward_dynamics()(q, qdot, tau, external_forces, nlp.parameters.cx)
 
         return DynamicsEvaluation(dxdt=vertcat(qdot, ddq), defects=None)
 
@@ -104,9 +91,7 @@ def animate_solution(
     try:
         from pyorerun import BiorbdModel, PhaseRerun, PyoMarkers, PyoMuscles
     except:
-        raise RuntimeError(
-            "To animate the optimal solution, you must install Pyorerun."
-        )
+        raise RuntimeError("To animate the optimal solution, you must install Pyorerun.")
 
     # Add the model
     model = BiorbdModel(biorbd_model_path)
@@ -115,9 +100,7 @@ def animate_solution(
     viz = PhaseRerun(np.linspace(0, phase_time, n_shooting + 1))
 
     # Add experimental markers
-    markers = PyoMarkers(
-        data=markers_exp, marker_names=list(model.marker_names), show_labels=False
-    )
+    markers = PyoMarkers(data=markers_exp, marker_names=list(model.marker_names), show_labels=False)
     nb_muscles = len(model.muscle_names)
     emgs = PyoMuscles(
         data=np.hstack((muscles_opt, np.zeros((nb_muscles, 1)))),
@@ -166,9 +149,7 @@ def animate_solution(
     )
 
     # Add the kinematics
-    viz.add_animated_model(
-        model, q_opt, tracked_markers=markers, muscle_activations_intensity=emgs
-    )
+    viz.add_animated_model(model, q_opt, tracked_markers=markers, muscle_activations_intensity=emgs)
 
     # Play
     viz.rerun("OCP optimal solution")

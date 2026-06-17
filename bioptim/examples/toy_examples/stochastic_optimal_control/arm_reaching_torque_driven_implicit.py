@@ -12,9 +12,6 @@ WARNING: These examples are not maintained anymore, please use SocpType.COLLOCAT
 import pickle
 from enum import Enum
 
-import casadi as cas
-import numpy as np
-
 from bioptim import (
     StochasticOptimalControlProgram,
     ObjectiveFcn,
@@ -22,7 +19,6 @@ from bioptim import (
     StochasticTorqueBiorbdModel,
     ObjectiveList,
     NonLinearProgram,
-    DynamicsOptionsList,
     DynamicsOptions,
     BoundsList,
     InterpolationType,
@@ -36,6 +32,9 @@ from bioptim import (
     ControlType,
     VariableScalingList,
 )
+from bioptim.examples.utils import ExampleUtils
+import casadi as cas
+import numpy as np
 
 
 class ExampleType(Enum):
@@ -99,6 +98,8 @@ def prepare_socp(
         The type of problem to solve (CIRCLE or BAR)
     with_cholesky: bool
         If True, whether to use the Cholesky factorization of the covariance matrix or not
+    with_scaling: bool
+        If True, whether to use scaling for the controls or not
 
     Returns
     -------
@@ -118,8 +119,10 @@ def prepare_socp(
         n_feedbacks=4,
         n_noised_states=4,
         n_noised_controls=2,
-        friction_coefficients=np.array([[0.05, 0.025], [0.025, 0.05]]),
     )
+
+    # Please refer to the arm_reaching_torque_driven_collocations.py example for an example of optimizing these values
+    bio_model.set_friction_coefficients(np.array([[0.05, 0.025], [0.025, 0.05]]))
 
     n_tau = bio_model.nb_tau
     n_q = bio_model.nb_q
@@ -343,7 +346,7 @@ def main():
     with_cholesky = True
     with_scaling = True
 
-    biorbd_model_path = "models/LeuvenArmModel.bioMod"
+    biorbd_model_path = ExampleUtils.folder + "/models/LeuvenArmModel.bioMod"
 
     hand_final_position = np.array([9.359873986980460e-12, 0.527332023564034])  # Directly from Tom's version
 

@@ -7,9 +7,6 @@ It is designed to show how one can define its own parameter objective functions 
 sufficient.
 """
 
-import numpy as np
-from casadi import MX
-
 from bioptim import (
     TorqueBiorbdModel,
     OptimalControlProgram,
@@ -28,8 +25,11 @@ from bioptim import (
     PhaseDynamics,
     VariableScaling,
     SolutionMerge,
+    Parameter,
 )
 from bioptim.examples.utils import ExampleUtils
+import numpy as np
+from casadi import MX
 
 
 def generate_dat_to_track(
@@ -111,8 +111,8 @@ def generate_dat_to_track(
     )
 
 
-def my_parameter_function(bio_model: TorqueBiorbdModel, value: MX):
-    bio_model.set_gravity(value)
+def my_parameter_function(bio_model: TorqueBiorbdModel, parameter: Parameter):
+    bio_model.set_gravity(parameter)
 
 
 def my_target_function(controller: PenaltyController, key: str) -> MX:

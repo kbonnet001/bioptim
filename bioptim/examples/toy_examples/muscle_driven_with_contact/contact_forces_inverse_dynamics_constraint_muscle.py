@@ -4,8 +4,6 @@ It also shows how to impose the contact forces as an implicit constraint.
 Please note that this formulation does not reach convergence.
 """
 
-import platform
-
 from matplotlib import pyplot as plt
 import numpy as np
 from casadi import vertcat
@@ -33,6 +31,7 @@ from bioptim import (
     SolutionIntegrator,
     ContactType,
 )
+from bioptim.examples.utils import ExampleUtils
 
 
 def contact_velocity_all_points(controller):
@@ -71,6 +70,7 @@ def prepare_ocp(
     defects_type: DefectType,
     contact_types: list[ContactType],
     expand_dynamics=True,
+    control_type=ControlType.CONSTANT,
 ):
 
     # BioModel
@@ -180,7 +180,7 @@ def prepare_ocp(
         x_init=x_init,
         u_init=u_init,
         a_init=a_init,
-        control_type=ControlType.CONSTANT,
+        control_type=control_type,
         objective_functions=objective_functions,
         constraints=constraints,
         multinode_constraints=multinode_constraints,
@@ -188,7 +188,7 @@ def prepare_ocp(
 
 
 def main():
-    biorbd_model_path = "models/2segments_4dof_2contacts_1muscle.bioMod"
+    biorbd_model_path = ExampleUtils.folder + "/models/2segments_4dof_2contacts_1muscle.bioMod"
     t = 0.1
     ns = 100
 
@@ -325,7 +325,7 @@ def main():
             color="tab:blue",
             label="Reintegration - qdot",
         )
-        axs[i_dof].set_title(f"{ocp.nlp[0].model.name_dof[i_dof]}")
+        axs[i_dof].set_title(f"{ocp.nlp[0].model.name_dofs[i_dof]}")
     axs[0].legend(bbox_to_anchor=(1.05, 1), loc="upper left")
     plt.tight_layout()
     plt.savefig(f"reintegration_{defects_type.value}.png")

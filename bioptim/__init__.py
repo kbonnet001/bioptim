@@ -217,6 +217,7 @@ from .models.biorbd.model_dynamics import (
     JointAccelerationBiorbdModel,
     MultiTorqueBiorbdModel,
 )
+from .models.pinocchio import PinocchioModel, TorquePinocchioModel
 from .models.protocols.biomodel import BioModel
 from .models.protocols.holonomic_constraints import HolonomicConstraintsFcn, HolonomicConstraintsList
 from .models.protocols.stochastic_biomodel import StochasticBioModel
@@ -233,13 +234,13 @@ from .dynamics.state_space_dynamics import (
     MusclesDynamicsWithExcitations,
     JointAccelerationDynamics,
 )
-from .dynamics.state_space_dynamics import StateDynamics
+from .dynamics.state_space_dynamics import StateDynamics, StateDynamicsWithContacts
 from .optimization.multi_start import MultiStart
 from .optimization.non_linear_program import NonLinearProgram
 from .optimization.optimal_control_program import OptimalControlProgram
 from .optimization.optimization_variable import OptimizationVariableList
 from .optimization.vector_layout import OrderingStrategy
-from .optimization.parameters import ParameterList, ParameterContainer
+from .optimization.parameters import Parameter, ParameterList, ParameterContainer
 from .optimization.problem_type import SocpType
 from .optimization.receding_horizon_optimization import (
     CyclicNonlinearModelPredictiveControl,

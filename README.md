@@ -30,7 +30,7 @@ The current status of `bioptim` on conda-forge is
 You can join us on Discord 
 [![Discord](https://img.shields.io/discord/1340640457327247460.svg?label=chat&logo=discord&color=7289DA)](https://discord.gg/Ux7BkdjQFW)
 or open an Issue on GitHub.
-We would be trilled to discuss with you about `bioptim` and biomechanics/optimal control in general!
+We would be thrilled to discuss with you about `bioptim` and biomechanics/optimal control in general!
 
 
 # Try bioptim
@@ -44,6 +44,7 @@ As a tour guide that uses this binder, you can watch the `bioptim` workshop that
 
 A GUI is available to run all the current examples. To run it you can use the following command, from the root folder of the project:
 ```bash
+conda install -c conda-forge pyqt pyqtgraph
 python -m bioptim.examples
 ```
 Please refer to section [Examples](#examples) for more information on how to run the examples.
@@ -263,7 +264,7 @@ conda install -c conda-forge bioptim
 ```
 This will download and install all the dependencies and install `bioptim`. 
 And that is it! 
-You can already enjoy bioptiming!
+You can already enjoy using bioptim!
 
 ## Installing from the sources (For Linux, Mac, and Windows)
 Installing from the sources is as easy as installing from Anaconda, with the difference that you will be required to download and install the dependencies by hand (see the section below). 
@@ -787,14 +788,15 @@ One can refer to their respective solver's documentation to know which options e
 The `show_online_optim` parameter can be set to `True` so the graphs nicely update during the optimization with the default values.
 One can also directly declare `online_optim` as an `OnlineOptim` parameter to customize the behavior of the plotter. 
 Note that `show_online_optim` and `online_optim` are mutually exclusive.
-Please also note that `OnlineOptim.MULTIPROCESS` is not available on Windows and only none of them are available on Macos. 
-To see how to run the server on Windows, please refer to the `getting_started/pendulum.py` example.
+Please also note that `OnlineOptim.MULTIPROCESS` is not available on Windows or Macos.
+On Macos, the default backend is `OnlineOptim.MULTIPROCESS_SERVER`, while `OnlineOptim.SERVER` remains available if one wants to start `resources/plotting_server.py` manually.
+To see how to run the server explicitly, please refer to the `resources/plotting_server.py` example.
 It is expected to slow down the optimization a bit. 
 `show_options` can be also passed as a dict to the plotter to customize the plotter's behavior.
 If `online_optim` is set to `SERVER`, then a server must be started manually by instantiating an `PlottingServer` class (see `ressources/plotting_server.py`).
 The following keys are additional options when using `OnlineOptim.SERVER` and `OnlineOptim.MULTIPROCESS_SERVER`:
   - `host`: the host to use (default is `localhost`)
-  - `port`: the port to use (default is `5030`)
+  - `port`: the port to use (default is `5030` for `OnlineOptim.SERVER` and a random available port for `OnlineOptim.MULTIPROCESS_SERVER`)
 
 If you want to see IPOPT's iterations over the course of the resolution of your opc, it is possible using the following:
 ```python    
@@ -949,16 +951,22 @@ class CustomModeling:
     def __init__(self, *args, **kwargs):
         ...
 
-    def name_dof(self):
+    def name_dofs(self):
         return ["dof1", "dof2", "dof3"]
 
     def marker_names(self):
         raise NotImplementedError
 ```
 
-The `AbstractModel` class is the base class to define the dynamics of the system.
-Some basic attributes and methods are defined like `extra_dynamics` returning `None` and some others have to be overridden in the child class, like `dynamics`.
-The main method to implement is the `dynamics` method, which defines the dynamics of the system and the main attributes to define are the state and control variable configurations. Once again, we have implemented some variable configurations for you, such as `States.Q` and `Controls.TAU`, but it is possible to define your own configurations.
+The `StateDynamics` class is the base class to define the dynamics of the system.
+The main methods to implement are `state_configuration_functions`, `control_configuration_functions`, `algebraic_configuration_functions`, `extra_configuration_functions`, and the `dynamics` method.
+
+The `state_configuration_functions` is expect to return a list of functions that configures variables. There are a lot of helper functions already implemented in `bioptim` to help you define your own configurations, such as `States.Q`, `States.QDOT`, that can be used directly.
+The same applies to the `control_configuration_functions` and `algebraic_configuration_functions` (e.g. `Controls.TAU`, `AlgebraicStates.RIGID_CONTACT_FORCES`, and so on). The example below shows both how to send these helper functions and how to declare a custom function.
+In any cases, the 
+The `extra_configuration_functions` can be used to define other types of variables one could need or other dynamics the user may need. 
+
+Finally the `dynamics` method defines the dynamics of the system and the main attributes to define are the state and control variable configurations. Once again, we have implemented some variable configurations for you, such as `States.Q` and `Controls.TAU`, but it is possible to define your own configurations.
 If you want to define other custom casadi functions, you can do it in the `functions` attribute.
 
 ```python3
@@ -966,15 +974,38 @@ from bioptim import StateDynamics
 
 
 class CustomDynamics(StateDynamics):
-    def __init__(self):
-        super().__init__()
-        self.state_configuration = [States.Q, States.QDOT]
-        self.control_configuration = [Controls.TAU]
-        self.algebraic_configuration = [
-            lambda ocp, nlp, as_states, as_controls, as_algebraic_states: your_custom_variable_function(
-                ocp, nlp, as_states, as_controls, as_algebraic_states, extra_arguments=extra_arguments
-            )]
-        self.functions = []
+    def __init__(self, my_custom_parameter, **kwargs):
+        super().__init__(**kwargs)
+        self.my_custom_parameter = my_custom_parameter
+    
+    @property
+    def state_configuration_functions(self):
+        return [States.Q, States.QDOT]
+
+    @property
+    def control_configuration_functions(self):
+        return [Controls.TAU]
+
+    @property
+    def algebraic_configuration_functions(self):
+        return [lambda ocp, nlp: self._my_custom_algebraic_variable_function(ocp, nlp)]
+
+    @property
+    def extra_configuration_functions(self):
+        return []
+
+    def _my_custom_algebraic_variable_function(self, ocp, nlp):
+        """
+        This method defines a custom variable configuration function.
+        """
+        
+        # DO SOMETHING WITH THE INPUTS
+        
+        variable_name = "my_custom_variable"
+        name_elements = ["element_1", "element_2"]
+        ConfigureVariables.configure_new_variable(
+          name=variable_name, name_elements=name_elements, ocp=ocp, nlp=nlp, as_algebraic_states=True
+        )
 
     def dynamics(
             self,
@@ -992,7 +1023,7 @@ class CustomDynamics(StateDynamics):
         raise NotImplementedError
 ```
 
-If you do not want to start from scratch, you can instead inherit from already defined classes like `BirbdModel` and `TorqueDynamics`, and then, override or add the methods that you need.
+If you do not want to start from scratch, you can instead inherit from already defined classes like `BiorbdModel` and `TorqueDynamics`, and then, override or add the methods that you need.
 To help you, here are some of the currently available variable configuration:
 - States:
   - `States.Q`: the generalized coordinates (q)
@@ -1690,7 +1721,7 @@ The type of online plotter to use.
 
 The accepted values are:
 NONE: No online plotter.
-DEFAULT: Use the default online plotter depending on the OS (MULTIPROCESS on Linux, MULTIPROCESS_SERVER on Windows and NONE on MacOS).
+DEFAULT: Use the default online plotter depending on the OS (MULTIPROCESS on Linux, MULTIPROCESS_SERVER on Windows and macOS).
 MULTIPROCESS: The online plotter is in a separate process.
 SERVER: The online plotter is in a separate server.
 MULTIPROCESS_SERVER: The online plotter using the server automatically setup on a separate process.
@@ -1975,6 +2006,9 @@ available in the `biorbd` documentation.
 
 ### The [example_optimal_time.py](./bioptim/examples/getting_started/example_optimal_time.py) file
 Examples of time optimization can be found in 'examples/optimal_time_ocp/'.
+
+### The [example_pinocchio.py](./bioptim/examples/getting_started/example_pinocchio.py) file
+This example is the exact same as the pendulum example, but with a model defined using the `Pinocchio` backend (instead of the `biorbd` backend). It is designed to show how to use a model defined in Pinocchio instead of biorbd.
 
 ### The [example_simulation.py](./bioptim/examples/getting_started/example_simulation.py) file
 The first part of this example is a single shooting simulation from initial guesses.

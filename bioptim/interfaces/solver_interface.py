@@ -61,7 +61,14 @@ class SolverInterface:
 
         raise RuntimeError("SolverInterface is an abstract class")
 
-    def solve(self, expand_during_shake_tree: Bool) -> AnyDict:
+    def show_constraints_jacobian_sparsity(self):
+        """
+        Show the sparsity of the constraints jacobian
+        """
+
+        raise RuntimeError("SolverInterface is an abstract class")
+
+    def solve(self, expand_during_shake_tree: Bool, mycallback=None) -> AnyDict:
         """
         Solve the prepared ocp
 

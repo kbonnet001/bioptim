@@ -137,7 +137,7 @@ class BiMapping(OptionGeneric):
         to_first: MappingOrIterable,
         oppose_to_second: MappingOrIterable = None,
         oppose_to_first: MappingOrIterable = None,
-        **extra_parameters
+        **extra_parameters,
     ):
         """
         Parameters
@@ -341,7 +341,7 @@ class SelectionMapping(BiMapping):
         nb_elements: Int = None,
         independent_indices: IntTuple = None,
         dependencies: DependencyTuple = None,
-        **extra_parameters
+        **extra_parameters,
     ):
         """
         Initializes the class SelectionMapping
@@ -408,11 +408,12 @@ class SelectionMapping(BiMapping):
         dependency_matrix: list = [None for _ in range(len(first))]
         oppose = []
         for i in range(len(first)):
-            if first[i] != 0 and first[i] > 0:
-                dependency_matrix[i] = int(first[i] - 1)
-            if first[i] < 0:
+            value = first[i, 0]
+            if value != 0 and value > 0:
+                dependency_matrix[i] = int(value - 1)
+            if value < 0:
                 oppose.append(i)
-                dependency_matrix[i] = int(abs(first[i]) - 1)
+                dependency_matrix[i] = int(abs(value) - 1)
 
         def _build_to_second(dependency_matrix: AnyList, independent_indices: AnyTuple):
             """

@@ -298,12 +298,11 @@ class Solution:
 
         dt, sol_states, sol_controls, sol_params, sol_algebraic_states = sol
 
-        vector = np.ndarray((0, 1))
-
         # For time
         if len(dt.shape) == 1:
             dt = dt[:, np.newaxis]
-        vector = np.concatenate((vector, dt))
+
+        state_vector = [dt]
 
         # For states
         for p, ss in enumerate(sol_states):
@@ -328,14 +327,8 @@ class Solution:
 
             for i in range(all_ns[p] * nb_intermediate_frames + 1):
                 for key in ss.keys():
-                    vector = np.concatenate(
-                        (
-                            vector,
-                            ss[key].init.evaluate_at(i, nb_intermediate_frames)[
-                                :, np.newaxis
-                            ],
-                        )
-                    )
+                    state_vector.append(ss[key].init.evaluate_at(i, nb_intermediate_frames)[:, None])
+        vector = np.vstack(state_vector)
 
         # For controls
         for p, ss in enumerate(sol_controls):
@@ -1469,9 +1462,7 @@ class Solution:
             A list of bioviz structures (one for each phase). So one can call exec() by hand
         """
 
-        from ...models.biorbd.viewer_utils import (
-            _check_models_comes_from_same_super_class,
-        )
+        from ...models.viewer_utils import _check_models_comes_from_same_super_class
 
         if shooting_type:
             self.integrate(shooting_type=shooting_type)

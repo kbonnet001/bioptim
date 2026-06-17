@@ -5,11 +5,23 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Getting Started",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/bioptim/examples/getting_started/basic_ocp.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}/bioptim/examples/getting_started/"
+        },
+        {
             "name": "Run examples GUI",
             "type": "debugpy",
             "request": "launch",
             "module": "bioptim.examples",
-            "justMyCode": false,
+            "justMyCode": true,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             },
@@ -26,18 +38,6 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "cwd": "${fileDirname}"
-        },
-        {
-            "name": "Pendulum",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/bioptim/examples/getting_started/pendulum.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}"
-            },
-            "cwd": "${workspaceFolder}/bioptim/examples/getting_started/"
         },
         {
             "name": "Parameter",

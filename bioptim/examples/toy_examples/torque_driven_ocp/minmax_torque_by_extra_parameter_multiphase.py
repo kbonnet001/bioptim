@@ -10,8 +10,6 @@ minimized using 3 approches:
 All graphical results are presented using pyplot
 """
 
-import numpy as np
-from casadi import MX
 from bioptim import (
     OptimalControlProgram,
     BioModel,
@@ -28,8 +26,12 @@ from bioptim import (
     TorqueBiorbdModel,
     PenaltyController,
     ParameterObjectiveList,
+    Parameter,
 )
+from bioptim.examples.utils import ExampleUtils
+from casadi import MX
 from matplotlib import pyplot as plt
+import numpy as np
 
 
 def custom_constraint_max_tau(controller: PenaltyController) -> MX:
@@ -46,15 +48,15 @@ def custom_constraint_min_max_tau(controller: PenaltyController) -> MX:
     return controller.parameters["min_max_tau"].cx - controller.controls["tau"].cx  # [mini, maxi]
 
 
-def my_parameter_function(bio_model: BioModel, value: MX):
+def my_parameter_function(bio_model: BioModel, parameter: Parameter):
     return
 
 
 def prepare_ocp(
+    biorbd_model_path: str,
     parameter_option: int = 0,
-    bio_model_path: str = "models/double_pendulum.bioMod",
 ) -> OptimalControlProgram:
-    bio_model = (TorqueBiorbdModel(bio_model_path), TorqueBiorbdModel(bio_model_path))
+    bio_model = (TorqueBiorbdModel(biorbd_model_path), TorqueBiorbdModel(biorbd_model_path))
 
     # Problem parameters
     n_shooting = (30, 30)
@@ -69,7 +71,7 @@ def prepare_ocp(
     constraints = ConstraintList()
 
     # Define the parameter to optimize
-    parameters = ParameterList()
+    parameters = ParameterList(use_sx=False)
     parameter_init = InitialGuessList()
     parameter_bounds = BoundsList()
     parameter_objectives = ParameterObjectiveList()
@@ -184,6 +186,8 @@ def prepare_ocp(
 
 def main():
     # --- Prepare the ocp --- #
+    biorbd_model_path = ExampleUtils.folder + "/models/double_pendulum.bioMod"
+
     fig, axs = plt.subplots(1, 3)
     axs[0].set_title("Joint coordinates")
     axs[0].set_ylabel("q [°]")
@@ -199,7 +203,7 @@ def main():
         axs[ax].grid(True)
 
     for i, linestyle in enumerate(linestyles):
-        ocp = prepare_ocp(parameter_option=i)
+        ocp = prepare_ocp(biorbd_model_path=biorbd_model_path, parameter_option=i)
 
         # --- Solve the ocp --- #
         sol = ocp.solve()

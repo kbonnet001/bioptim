@@ -9,9 +9,6 @@ WARNING: These examples are not maintained anymore, please use SocpType.COLLOCAT
 import pickle
 from typing import Any
 
-import casadi as cas
-import numpy as np
-
 from bioptim import (
     OptimalControlProgram,
     StochasticOptimalControlProgram,
@@ -41,10 +38,11 @@ from bioptim import (
     PhaseDynamics,
     BiMapping,
 )
-from bioptim.examples.stochastic_optimal_control.arm_reaching_torque_driven_implicit import ExampleType
-from bioptim.examples.stochastic_optimal_control.common import (
-    dynamics_torque_driven_with_feedbacks,
-)
+from bioptim.examples.utils import ExampleUtils
+from bioptim.examples.toy_examples.stochastic_optimal_control.arm_reaching_torque_driven_implicit import ExampleType
+from bioptim.examples.toy_examples.stochastic_optimal_control.common import dynamics_torque_driven_with_feedbacks
+import casadi as cas
+import numpy as np
 
 
 def stochastic_forward_dynamics(
@@ -398,10 +396,12 @@ def prepare_socp(
         n_noised_controls=2,
         sensory_noise_magnitude=sensory_noise_magnitude,
         motor_noise_magnitude=motor_noise_magnitude,
-        friction_coefficients=np.array([[0.05, 0.025], [0.025, 0.05]]),
         sensory_reference=sensory_reference,
     )
     bio_model.force_field_magnitude = force_field_magnitude
+
+    # Please refer to the arm_reaching_torque_driven_collocations.py example for an example of optimizing these values
+    bio_model.set_friction_coefficients(np.array([[0.05, 0.025], [0.025, 0.05]]))
 
     n_tau = bio_model.nb_tau
     n_q = bio_model.nb_q
@@ -594,7 +594,7 @@ def main():
     use_sx = False
     vizualize_sol_flag = True
 
-    biorbd_model_path = "models/LeuvenArmModel.bioMod"
+    biorbd_model_path = ExampleUtils.folder + "/models/LeuvenArmModel.bioMod"
 
     hand_final_position = np.array([9.359873986980460e-12, 0.527332023564034])  # Directly from Tom's version
 

@@ -10,16 +10,13 @@ from biorbd_casadi import (
 )
 from casadi import SX, MX, vertcat, horzcat, norm_fro, Function, DM
 
-from bioptim.models.biorbd.external_forces import (
-    ExternalForceSetTimeSeries,
-    ExternalForceSetVariables,
-)
 from ..utils import _var_mapping, bounds_from_ranges, cache_function, check_contacts
 from ...limits.path_conditions import Bounds
 from ...misc.mapping import BiMapping, BiMappingList
 from ...misc.enums import ContactType
 from ...misc.utils import check_version
-from ...optimization.parameters import ParameterList
+from ...models.biorbd.external_forces import ExternalForceSetTimeSeries, ExternalForceSetVariables
+from ...optimization.parameters import Parameter, ParameterList
 
 from ...misc.parameters_types import Int, IntTuple, CX, CXOptional
 
@@ -29,23 +26,28 @@ check_version(biorbd, "1.11.1", "1.13.0")
 class BiorbdModel:
     """
     This class wraps the biorbd model and allows the user to call the biorbd functions from the biomodel protocol
+    It can be used as a mixin with StateDynamics to create custom dynamics models.
+    For example:
+    ```python
+    class MyTorqueDynamicsBiorbdModel(BiorbdModel, TorqueDynamics):
+        ...
+    ```
+    More specifically, it declares with the required `name`, `name_dofs` and `contact_types` properties
     """
 
     def __init__(
         self,
         bio_model: str | biorbd.Model,
-        friction_coefficients: np.ndarray = None,
         parameters: ParameterList = None,
         external_force_set: ExternalForceSetTimeSeries | ExternalForceSetVariables = None,
         contact_types: list[ContactType] | tuple[ContactType] = (),
+        **kwargs,
     ):
         """
         Parameters
         ----------
         bio_model: str | biorbd.Model
             The path to the bioMod file or the biorbd.Model
-        friction_coefficients: np.ndarray
-            The friction coefficients
         parameters: ParameterList
             The parameters to add to the model. The function will call the callback with the unscaled version of the
             parameters. The user can use this callback to modify the model.
@@ -54,6 +56,7 @@ class BiorbdModel:
         contact_types: list[ContactType] | tuple[ContactType]
             The type of contacts tu use in the model's dynamics
         """
+        super().__init__(**kwargs)  # For multiple inheritance compatibility
 
         if not isinstance(bio_model, str) and not isinstance(bio_model, biorbd.Model):
             raise ValueError("The model should be of type 'str' or 'biorbd.Model'")
@@ -61,21 +64,23 @@ class BiorbdModel:
         self.model = biorbd.Model(bio_model) if isinstance(bio_model, str) else bio_model
 
         check_contacts(contact_types, self)
-        self.contact_types = contact_types
+        self._contact_types = contact_types
 
+        self._friction_coefficients = None
         if parameters is not None:
             for param_key in parameters:
                 parameters[param_key].apply_parameter(self)
-        self._friction_coefficients = friction_coefficients
+        self.parameters = parameters.mx if parameters else MX()
 
         self.external_force_set = self._set_external_force_set(external_force_set)
         self._symbolic_variables()
         self.biorbd_external_forces_set = self._dispatch_forces() if self.external_force_set else None
 
-        # TODO: remove mx (the MX parameters should be created inside the BiorbdModel)
-        self.parameters = parameters.mx if parameters else MX()
-
         self._cached_functions = {}
+
+    @property
+    def contact_types(self):
+        return self._contact_types
 
     def _symbolic_variables(self):
         """Declaration of MX variables of the right shape for the creation of CasADi Functions"""
@@ -157,12 +162,19 @@ class BiorbdModel:
 
     @property
     def friction_coefficients(self) -> MX | SX | np.ndarray:
-        return self._friction_coefficients
+        return (
+            self._friction_coefficients.reshape((self.nb_tau, self.nb_qdot))
+            if self._friction_coefficients is not None
+            else None
+        )
 
     def set_friction_coefficients(self, new_friction_coefficients) -> None:
         if isinstance(new_friction_coefficients, (DM, np.ndarray)) and np.any(new_friction_coefficients < 0):
             raise ValueError("Friction coefficients must be positive")
-        self._friction_coefficients = new_friction_coefficients
+        if isinstance(new_friction_coefficients, Parameter):
+            self._friction_coefficients = new_friction_coefficients.cx
+        else:
+            self._friction_coefficients = new_friction_coefficients
 
     @cache_function
     def gravity(self) -> Function:
@@ -181,9 +193,11 @@ class BiorbdModel:
         )
         return casadi_fun
 
-    def set_gravity(self, new_gravity) -> None:
-        self.model.setGravity(new_gravity)
-        return
+    def set_gravity(self, new_gravity: Parameter | MX | np.ndarray) -> None:
+        if isinstance(new_gravity, Parameter):
+            self.model.setGravity(new_gravity.mx)
+        else:
+            self.model.setGravity(new_gravity)
 
     @property
     def nb_tau(self) -> int:
@@ -461,7 +475,7 @@ class BiorbdModel:
         return casadi_fun
 
     @property
-    def name_dof(self) -> tuple[str, ...]:
+    def name_dofs(self) -> tuple[str, ...]:
         return tuple(s.to_string() for s in self.model.nameDof())
 
     @property
@@ -522,7 +536,7 @@ class BiorbdModel:
         return casadi_fun
 
     @staticmethod
-    def reorder_qddot_root_joints(qddot_root, qddot_joints) -> MX | SX:
+    def reorder_qddot_root_joints(qddot_root: CX, qddot_joints: CX) -> CX:
         return vertcat(qddot_root, qddot_joints)
 
     def _dispatch_forces(self) -> biorbd.ExternalForceSet:
@@ -1321,6 +1335,17 @@ class BiorbdModel:
     def partitioned_forward_dynamics(self):
         raise NotImplementedError("partitioned_forward_dynamics is not implemented for BiorbdModel")
 
+    def to_pyorerun_model(self):
+        """Create a pyorerun BiorbdModel for visualization."""
+        import pyorerun
+
+        return pyorerun.BiorbdModel.from_biorbd_object(self.model)
+
+    @property
+    def pyorerun_marker_names(self) -> list[str]:
+        """Get marker names formatted for pyorerun visualization."""
+        return [n.to_string() for n in self.model.markerNames()]
+
     @staticmethod
     def animate(
         ocp,
@@ -1336,6 +1361,6 @@ class BiorbdModel:
 
             return animate_with_bioviz_for_loop(ocp, solution, show_now, show_tracked_markers, n_frames, **kwargs)
         if viewer == "pyorerun":
-            from .viewer_pyorerun import animate_with_pyorerun
+            from ..viewer_pyorerun import animate_with_pyorerun
 
             return animate_with_pyorerun(ocp, solution, show_now, show_tracked_markers, **kwargs)

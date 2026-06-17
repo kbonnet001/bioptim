@@ -6,8 +6,6 @@ problem as a parameter, all torque interval re constrained to be smaller than th
 minimized. Two options are provided and compared to define initial and final states (0: bounds; 1: constraints)
 """
 
-import numpy as np
-from casadi import MX
 from bioptim import (
     OptimalControlProgram,
     DynamicsOptions,
@@ -26,9 +24,12 @@ from bioptim import (
     ParameterObjectiveList,
     VariableScaling,
     BioModel,
+    Parameter,
 )
 from bioptim.examples.utils import ExampleUtils
+from casadi import MX
 from matplotlib import pyplot as plt
+import numpy as np
 
 
 def custom_constraint_max_tau(controller: PenaltyController) -> MX:
@@ -39,7 +40,7 @@ def custom_constraint_min_tau(controller: PenaltyController) -> MX:
     return controller.parameters["min_tau"].cx - controller.controls["tau"].cx
 
 
-def my_parameter_function(bio_model: BioModel, value: MX):
+def my_parameter_function(bio_model: BioModel, parameter: Parameter):
     return
 
 

@@ -1,7 +1,6 @@
-import numpy as np
-from typing import Protocol, Callable, Any
+from typing import Protocol, Callable, Any, TYPE_CHECKING
 
-from casadi import MX, SX, Function
+from casadi import MX, Function
 from ...misc.mapping import BiMapping, BiMappingList
 from ...limits.path_conditions import Bounds
 from ..utils import cache_function
@@ -17,7 +16,11 @@ from ...misc.parameters_types import (
     Bool,
     NpArrayListOptional,
     AnyListOptional,
+    CX,
 )
+
+if TYPE_CHECKING:
+    from ...optimization.solution import SolutionData
 
 
 class BioModel(Protocol):
@@ -161,7 +164,7 @@ class BioModel(Protocol):
         """
 
     @property
-    def name_dof(self) -> StrTuple:
+    def name_dofs(self) -> StrTuple:
         """Get the name of the degrees of freedom"""
         return ()
 
@@ -199,7 +202,7 @@ class BioModel(Protocol):
         args: q, qdot, qddot_joints
         """
 
-    def reorder_qddot_root_joints(self) -> Function:
+    def reorder_qddot_root_joints(self, qddot_root: CX, qddot_joints: CX) -> CX:
         """
         reorder the qddot, from the root dof and the joints dof
         args: qddot_root, qddot_joints
@@ -468,3 +471,28 @@ class BioModel(Protocol):
         -------
         The animator object or None if show_now
         """
+
+    def to_pyorerun_model(self) -> Any:
+        """
+        Create a pyorerun-compatible model for visualization.
+
+        Each BioModel implementation should return the appropriate pyorerun model type
+        (e.g., pyorerun.BiorbdModel for biorbd, pyorerun.PinocchioModel for pinocchio).
+
+        Returns
+        -------
+        Any
+            A pyorerun model suitable for animation
+        """
+
+    @property
+    def pyorerun_marker_names(self) -> list[str]:
+        """
+        Get marker names formatted for pyorerun visualization.
+
+        Returns
+        -------
+        list[str]
+            List of marker names as strings
+        """
+        return []
